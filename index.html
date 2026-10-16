@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PCB Component Inventory — Automotive | Battery | Chargenet</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .dept-Automotive { background-color: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+    .dept-Battery { background-color: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .dept-Chargenet { background-color: #ffedd5; color: #9a3412; border: 1px solid #fdba74; }
+    .dept-Shared { background-color: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen font-sans">
+
+  <!-- Top Navigation Bar -->
+  <header class="bg-slate-900 text-white shadow-md">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-4">
+      <div class="flex items-center gap-3">
+        <div class="bg-blue-600 p-2 rounded-lg font-bold text-lg tracking-wider">PCB</div>
+        <div>
+          <h1 class="text-xl font-bold">Cross-Department Component Hub</h1>
+          <p class="text-xs text-slate-400">Automotive • Battery • Chargenet — Stop Duplicate LCSC & Mouser Orders</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="dbStatusBadge" class="text-xs px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+          Mode: Local Demo
+        </span>
+        <button onclick="openModal('addPartModal')" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
+          + Add / Restock Part
+        </button>
+        <button onclick="openModal('bomCheckModal')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
+          BOM Pre-Order Checker
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+    <!-- KPI Summary Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        <p class="text-xs text-slate-500 uppercase font-semibold">Unique MPNs</p>
+        <p id="statTotalParts" class="text-2xl font-bold text-slate-800 mt-1">0</p>
+      </div>
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-blue-200">
+        <p class="text-xs text-blue-600 uppercase font-semibold">Automotive Stock</p>
+        <p id="statAutoStock" class="text-2xl font-bold text-blue-900 mt-1">0 pcs</p>
+      </div>
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-emerald-200">
+        <p class="text-xs text-emerald-600 uppercase font-semibold">Battery Stock</p>
+        <p id="statBatteryStock" class="text-2xl font-bold text-emerald-900 mt-1">0 pcs</p>
+      </div>
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-orange-200">
+        <p class="text-xs text-orange-600 uppercase font-semibold">Chargenet Stock</p>
+        <p id="statChargenetStock" class="text-2xl font-bold text-orange-900 mt-1">0 pcs</p>
+      </div>
+    </div>
+
+    <!-- Search & Filter Bar -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-center">
+      <div class="flex-1 min-w-[260px]">
+        <input id="searchInput" type="text" oninput="renderInventory()"
+          placeholder="Search by MPN (e.g. BQ25620, CC2640), LCSC C-Number, Value (10k), or Footprint (0603)..."
+          class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+      </div>
+      <div>
+        <select id="deptFilter" onchange="renderInventory()" class="px-3 py-2.5 rounded-lg border border-slate-300 text-sm bg-white">
+          <option value="ALL">All Departments</option>
+          <option value="Automotive">Automotive Only</option>
+          <option value="Battery">Battery Only</option>
+          <option value="Chargenet">Chargenet Only</option>
+        </select>
+      </div>
+      <div>
+        <select id="catFilter" onchange="renderInventory()" class="px-3 py-2.5 rounded-lg border border-slate-300 text-sm bg-white">
+          <option value="ALL">All Categories</option>
+          <option value="MCU / RF">MCU / RF</option>
+          <option value="PMIC / BMS">PMIC / BMS</option>
+          <option value="Power / MOSFET">Power / MOSFET</option>
+          <option value="Interface / CAN">Interface / CAN</option>
+          <option value="Passives">Passives (R / C / L)</option>
+          <option value="Connectors / Relays">Connectors / Relays</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Inventory Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-100 text-slate-600 text-xs uppercase border-b border-slate-200">
+              <th class="py-3.5 px-4">MPN & Supplier Links</th>
+              <th class="py-3.5 px-4">Category & Package</th>
+              <th class="py-3.5 px-4">Specs / Description</th>
+              <th class="py-3.5 px-4">Stock by Department (Bin & Holder)</th>
+              <th class="py-3.5 px-4 text-right">Total Qty</th>
+              <th class="py-3.5 px-4 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="inventoryTableBody" class="divide-y divide-slate-200 text-sm">
+            <!-- Populated by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Recent Component Sharing / Transaction Log -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+      <h2 class="text-sm font-bold text-slate-700 uppercase mb-3">Recent Component Activity & Inter-Department Sharing</h2>
+      <div id="txLogContainer" class="space-y-2 text-xs text-slate-600 max-h-48 overflow-y-auto">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL 1: Add / Restock Component -->
+  <div id="addPartModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-bold text-lg">Add LCSC / Mouser Component to Stock</h3>
+        <button onclick="closeModal('addPartModal')" class="text-slate-400 hover:text-slate-600">&times;</button>
+      </div>
+      <form id="addPartForm" onsubmit="handleAddPart(event)" class="space-y-3 text-sm">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Manufacturer Part # (MPN)*</label>
+            <input id="f_mpn" required placeholder="e.g. BQ25620RYKR" class="w-full border rounded-lg px-3 py-2 uppercase">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Category*</label>
+            <select id="f_category" class="w-full border rounded-lg px-3 py-2 bg-white">
+              <option>MCU / RF</option>
+              <option>PMIC / BMS</option>
+              <option>Power / MOSFET</option>
+              <option>Interface / CAN</option>
+              <option>Passives</option>
+              <option>Connectors / Relays</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">LCSC Part #</label>
+            <input id="f_lcsc" placeholder="e.g. C524812" class="w-full border rounded-lg px-3 py-2 uppercase">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Mouser Part #</label>
+            <input id="f_mouser" placeholder="e.g. 595-BQ25620" class="w-full border rounded-lg px-3 py-2">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Package / Footprint</label>
+            <input id="f_package" placeholder="e.g. 0603, WQFN-24" class="w-full border rounded-lg px-3 py-2">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Specs / Value Description*</label>
+          <input id="f_desc" required placeholder="e.g. I2C Single-Cell Li-Ion Battery Charger IC" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <hr class="my-2">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Department*</label>
+            <select id="f_dept" class="w-full border rounded-lg px-3 py-2 bg-white">
+              <option>Automotive</option>
+              <option>Battery</option>
+              <option>Chargenet</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Quantity Added*</label>
+            <input id="f_qty" type="number" min="1" required placeholder="50" class="w-full border rounded-lg px-3 py-2">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Storage Bin / Drawer Code*</label>
+            <input id="f_bin" required placeholder="e.g. BAT-BOX-04" class="w-full border rounded-lg px-3 py-2">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Member Name / Holder*</label>
+            <input id="f_owner" required placeholder="e.g. Sudeepa" class="w-full border rounded-lg px-3 py-2">
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-3">
+          <button type="button" onclick="closeModal('addPartModal')" class="px-4 py-2 rounded-lg border text-slate-600">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-500">Save to Inventory</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: Take / Borrow Component -->
+  <div id="takePartModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-xl space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-bold text-lg">Take / Borrow Component</h3>
+        <button onclick="closeModal('takePartModal')" class="text-slate-400 hover:text-slate-600">&times;</button>
+      </div>
+      <form id="takePartForm" onsubmit="handleTakePart(event)" class="space-y-3 text-sm">
+        <input type="hidden" id="t_stock_id">
+        <input type="hidden" id="t_mpn">
+        <div class="bg-slate-100 p-3 rounded-lg">
+          <p id="t_part_summary" class="font-bold text-slate-800"></p>
+          <p id="t_stock_summary" class="text-xs text-slate-500 mt-1"></p>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Quantity to Take*</label>
+          <input id="t_qty" type="number" min="1" required class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Your Name & Department*</label>
+          <input id="t_engineer" required placeholder="e.g. Kasun (Chargenet)" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Project / PCB Board Note*</label>
+          <input id="t_note" required placeholder="e.g. Borrowed for Charger Control PCB Rev 1.2" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div class="flex justify-end gap-2 pt-3">
+          <button type="button" onclick="closeModal('takePartModal')" class="px-4 py-2 rounded-lg border text-slate-600">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-500">Confirm & Deduct Stock</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 3: BOM Pre-Order Checker -->
+  <div id="bomCheckModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-xl space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <div>
+          <h3 class="font-bold text-lg">Pre-Order BOM Checker (Avoid Duplicate Orders)</h3>
+          <p class="text-xs text-slate-500">Paste a list of MPNs or LCSC C-Numbers from your Altium/KiCad BOM before ordering</p>
+        </div>
+        <button onclick="closeModal('bomCheckModal')" class="text-slate-400 hover:text-slate-600">&times;</button>
+      </div>
+      <textarea id="bomInput" rows="4" placeholder="Paste MPNs or LCSC numbers separated by commas or newlines (e.g. CC2640R2FRGZR, C132315, BQ25622, SN65HVD230)..."
+        class="w-full border rounded-lg p-3 text-sm font-mono"></textarea>
+      <button onclick="runBomCheck()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+        Check Existing Company Stock
+      </button>
+      <div id="bomResults" class="max-h-64 overflow-y-auto divide-y border rounded-lg"></div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================================
+    // 1. SUPABASE CONFIGURATION (Replace with your Supabase URL & Anon Key)
+    // ============================================================================
+    const SUPABASE_URL = "https://btlmrnbuoytmwvfikktm.supabase.co/rest/v1/";
+    const SUPABASE_ANON_KEY = "sb_publishable_g3kuOq9CYn7icBaMQZSa0Q_gpL1h4Pl";
+
+    const isLiveSupabase = SUPABASE_URL.startsWith("https://") && !SUPABASE_URL.includes("YOUR_");
+    const supabaseClient = isLiveSupabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+    // ============================================================================
+    // 2. INITIAL SAMPLE DATA (Used automatically until Supabase keys are added)
+    // ============================================================================
+    let componentsData = [
+      {
+        id: "c1", mpn: "CC2640R2FRGZR", lcsc_pn: "C132315", mouser_pn: "595-CC2640R2FRGZR",
+        category: "MCU / RF", package: "VQFN-48", description: "SimpleLink BLE 5.0 Wireless MCU 2.4GHz",
+        stock_locations: [
+          { id: "s1", department: "Automotive", owner_person: "Sudeepa", storage_bin: "AUTO-IC-01", quantity: 18 },
+          { id: "s2", department: "Chargenet", owner_person: "Nuwan", storage_bin: "CHG-MCU-03", quantity: 6 }
+        ]
+      },
+      {
+        id: "c2", mpn: "BQ25620RYKR", lcsc_pn: "C5291044", mouser_pn: "595-BQ25620RYKR",
+        category: "PMIC / BMS", package: "WQFN-24", description: "I2C 3.5A Single-Cell Battery Charger w/ NVDC",
+        stock_locations: [
+          { id: "s3", department: "Battery", owner_person: "Kasun", storage_bin: "BAT-PMIC-02", quantity: 35 },
+          { id: "s4", department: "Automotive", owner_person: "Sudeepa", storage_bin: "AUTO-IC-04", quantity: 12 }
+        ]
+      },
+      {
+        id: "c3", mpn: "TIC12400QDCPRQ1", lcsc_pn: "C2061421", mouser_pn: "595-TIC12400QDCPRQ1",
+        category: "Interface / CAN", package: "HTSSOP-38", description: "24-Input Automotive Multiple Switch Detection Interface",
+        stock_locations: [
+          { id: "s5", department: "Automotive", owner_person: "Sudeepa", storage_bin: "AUTO-IC-02", quantity: 22 }
+        ]
+      },
+      {
+        id: "c4", mpn: "RC0603FR-0710KL", lcsc_pn: "C25804", mouser_pn: "603-RC0603FR-0710KL",
+        category: "Passives", package: "0603", description: "10kΩ ±1% 0.1W SMD Thick Film Resistor",
+        stock_locations: [
+          { id: "s6", department: "Automotive", owner_person: "Lab Book 1", storage_bin: "AUTO-SMD-R1", quantity: 1450 },
+          { id: "s7", department: "Battery", owner_person: "Lab Book 2", storage_bin: "BAT-SMD-R1", quantity: 800 },
+          { id: "s8", department: "Chargenet", owner_person: "Chathura", storage_bin: "CHG-SMD-R4", quantity: 2200 }
+        ]
+      }
+    ];
+
+    let transactionsData = [
+      { component_mpn: "BQ25620RYKR", department: "Battery", engineer_name: "Sudeepa (Automotive)", action_type: "TAKE", qty_changed: -4, project_note: "Borrowed for Keyfob Charger Rev 2", created_at: new Date().toISOString() }
+    ];
+
+    // ============================================================================
+    // 3. DATA LOADING & RENDERING
+    // ============================================================================
+    async function loadInventory() {
+      const badge = document.getElementById("dbStatusBadge");
+      if (isLiveSupabase) {
+        badge.textContent = "Mode: Live Supabase Cloud";
+        badge.className = "text-xs px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40";
+        const { data: comps } = await supabaseClient.from("components").select("*, stock_locations(*)").order("mpn");
+        const { data: txs } = await supabaseClient.from("transactions").select("*").order("created_at", { ascending: false }).limit(20);
+        if (comps) componentsData = comps;
+        if (txs) transactionsData = txs;
+      } else {
+        const saved = localStorage.getItem("pcb_demo_inventory");
+        const savedTx = localStorage.getItem("pcb_demo_tx");
+        if (saved) componentsData = JSON.parse(saved);
+        if (savedTx) transactionsData = JSON.parse(savedTx);
+      }
+      renderInventory();
+      renderTransactions();
+    }
+
+    function saveLocalFallback() {
+      if (!isLiveSupabase) {
+        localStorage.setItem("pcb_demo_inventory", JSON.stringify(componentsData));
+        localStorage.setItem("pcb_demo_tx", JSON.stringify(transactionsData));
+      }
+    }
+
+    function renderInventory() {
+      const query = document.getElementById("searchInput").value.trim().toLowerCase();
+      const deptFilter = document.getElementById("deptFilter").value;
+      const catFilter = document.getElementById("catFilter").value;
+      const tbody = document.getElementById("inventoryTableBody");
+      tbody.innerHTML = "";
+
+      let autoTotal = 0, batTotal = 0, chgTotal = 0;
+
+      componentsData.forEach(comp => {
+        (comp.stock_locations || []).forEach(loc => {
+          if (loc.department === "Automotive") autoTotal += loc.quantity;
+          if (loc.department === "Battery") batTotal += loc.quantity;
+          if (loc.department === "Chargenet") chgTotal += loc.quantity;
+        });
+      });
+
+      document.getElementById("statTotalParts").textContent = componentsData.length;
+      document.getElementById("statAutoStock").textContent = autoTotal.toLocaleString() + " pcs";
+      document.getElementById("statBatteryStock").textContent = batTotal.toLocaleString() + " pcs";
+      document.getElementById("statChargenetStock").textContent = chgTotal.toLocaleString() + " pcs";
+
+      const filtered = componentsData.filter(c => {
+        const matchesQuery = !query ||
+          c.mpn.toLowerCase().includes(query) ||
+          (c.lcsc_pn && c.lcsc_pn.toLowerCase().includes(query)) ||
+          (c.mouser_pn && c.mouser_pn.toLowerCase().includes(query)) ||
+          (c.package && c.package.toLowerCase().includes(query)) ||
+          (c.description && c.description.toLowerCase().includes(query));
+
+        const matchesCat = catFilter === "ALL" || c.category === catFilter;
+        const matchesDept = deptFilter === "ALL" || (c.stock_locations || []).some(s => s.department === deptFilter && s.quantity > 0);
+        return matchesQuery && matchesCat && matchesDept;
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">No matching components found. Safe to order from LCSC/Mouser!</td></tr>`;
+        return;
+      }
+
+      filtered.forEach(c => {
+        const locs = c.stock_locations || [];
+        const totalQty = locs.reduce((sum, s) => sum + s.quantity, 0);
+
+        const badgesHtml = locs.map(s => `
+          <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-md text-xs font-medium mr-2 mb-1 dept-${s.department}">
+            <span><strong>${s.department}:</strong> ${s.quantity} pcs</span>
+            <span class="opacity-75">(${s.storage_bin} • ${s.owner_person})</span>
+            <button onclick="openTakeModal('${s.id}', '${c.mpn}', '${s.department}', ${s.quantity}, '${s.storage_bin}')"
+              class="ml-1 bg-white/80 hover:bg-white text-slate-800 px-1.5 py-0.5 rounded border border-current text-[11px] font-bold">
+              Use / Borrow
+            </button>
+          </div>
+        `).join("");
+
+        const lcscUrl = c.lcsc_pn ? `https://www.lcsc.com/search?q=${encodeURIComponent(c.lcsc_pn)}` : null;
+        const mouserUrl = c.mouser_pn ? `https://www.mouser.com/c/?q=${encodeURIComponent(c.mouser_pn)}` : null;
+
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-3.5 px-4">
+              <div class="font-bold text-slate-900 font-mono">${c.mpn}</div>
+              <div class="flex gap-2 mt-1 text-xs">
+                ${c.lcsc_pn ? `<a href="${lcscUrl}" target="_blank" class="text-blue-600 hover:underline">LCSC: ${c.lcsc_pn} ↗</a>` : ""}
+                ${c.mouser_pn ? `<a href="${mouserUrl}" target="_blank" class="text-orange-600 hover:underline">Mouser: ${c.mouser_pn} ↗</a>` : ""}
+              </div>
+            </td>
+            <td class="py-3.5 px-4">
+              <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-medium">${c.category}</span>
+              <div class="text-xs text-slate-500 font-mono mt-1">${c.package || "—"}</div>
+            </td>
+            <td class="py-3.5 px-4 text-slate-700 max-w-xs">${c.description}</td>
+            <td class="py-3.5 px-4">${badgesHtml || '<span class="text-xs text-slate-400">Out of stock</span>'}</td>
+            <td class="py-3.5 px-4 text-right font-bold text-base ${totalQty > 0 ? 'text-emerald-700' : 'text-red-500'}">${totalQty.toLocaleString()}</td>
+            <td class="py-3.5 px-4 text-center">
+              <button onclick="prefillRestock('${c.mpn}', '${c.category}', '${c.lcsc_pn || ''}', '${c.mouser_pn || ''}', '${c.package || ''}', '${c.description.replace(/'/g, "")}')"
+                class="text-xs text-blue-600 hover:text-blue-800 font-semibold border border-blue-200 bg-blue-50 px-2.5 py-1 rounded">
+                + Add Dept Stock
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function renderTransactions() {
+      const container = document.getElementById("txLogContainer");
+      if (!transactionsData.length) {
+        container.innerHTML = `<p class="text-slate-400">No component transactions logged yet.</p>`;
+        return;
+      }
+      container.innerHTML = transactionsData.map(t => `
+        <div class="flex justify-between items-center border-b border-slate-100 pb-1.5">
+          <div>
+            <span class="font-mono font-bold text-slate-800">${t.component_mpn}</span>
+            <span class="${t.qty_changed < 0 ? 'text-amber-700 font-bold' : 'text-emerald-700 font-bold'} ml-2">
+              ${t.qty_changed > 0 ? '+' + t.qty_changed : t.qty_changed} pcs
+            </span>
+            <span class="text-slate-500 ml-1">(${t.department}) by <strong>${t.engineer_name}</strong> — ${t.project_note}</span>
+          </div>
+          <span class="text-slate-400">${new Date(t.created_at).toLocaleDateString()}</span>
+        </div>
+      `).join("");
+    }
+
+    // ============================================================================
+    // 4. ADD / RESTOCK & TAKE / BORROW ACTIONS
+    // ============================================================================
+    async function handleAddPart(e) {
+      e.preventDefault();
+      const mpn = document.getElementById("f_mpn").value.trim().toUpperCase();
+      const category = document.getElementById("f_category").value;
+      const lcsc_pn = document.getElementById("f_lcsc").value.trim().toUpperCase();
+      const mouser_pn = document.getElementById("f_mouser").value.trim();
+      const pkg = document.getElementById("f_package").value.trim();
+      const description = document.getElementById("f_desc").value.trim();
+      const department = document.getElementById("f_dept").value;
+      const quantity = parseInt(document.getElementById("f_qty").value, 10);
+      const storage_bin = document.getElementById("f_bin").value.trim();
+      const owner_person = document.getElementById("f_owner").value.trim();
+
+      if (isLiveSupabase) {
+        let { data: existingComp } = await supabaseClient.from("components").select("*").eq("mpn", mpn).single();
+        if (!existingComp) {
+          const { data: created } = await supabaseClient.from("components")
+            .insert({ mpn, category, lcsc_pn, mouser_pn, package: pkg, description }).select().single();
+          existingComp = created;
+        }
+        await supabaseClient.from("stock_locations").insert({
+          component_id: existingComp.id, department, owner_person, storage_bin, quantity
+        });
+        await supabaseClient.from("transactions").insert({
+          component_mpn: mpn, department, engineer_name: owner_person,
+          action_type: "ADD", qty_changed: quantity, project_note: `Added to bin ${storage_bin}`
+        });
+        await loadInventory();
+      } else {
+        let comp = componentsData.find(c => c.mpn === mpn);
+        if (!comp) {
+          comp = { id: "c_" + Date.now(), mpn, category, lcsc_pn, mouser_pn, package: pkg, description, stock_locations: [] };
+          componentsData.unshift(comp);
+        }
+        comp.stock_locations.push({
+          id: "s_" + Date.now(), department, owner_person, storage_bin, quantity
+        });
+        transactionsData.unshift({
+          component_mpn: mpn, department, engineer_name: owner_person,
+          action_type: "ADD", qty_changed: quantity, project_note: `Added to bin ${storage_bin}`,
+          created_at: new Date().toISOString()
+        });
+        saveLocalFallback();
+        renderInventory();
+        renderTransactions();
+      }
+      document.getElementById("addPartForm").reset();
+      closeModal("addPartModal");
+    }
+
+    function openTakeModal(stockId, mpn, dept, currentQty, bin) {
+      document.getElementById("t_stock_id").value = stockId;
+      document.getElementById("t_mpn").value = mpn;
+      document.getElementById("t_qty").max = currentQty;
+      document.getElementById("t_part_summary").textContent = `${mpn} (${dept} Stock)`;
+      document.getElementById("t_stock_summary").textContent = `Bin: ${bin} • Available: ${currentQty} pcs`;
+      openModal("takePartModal");
+    }
+
+    async function handleTakePart(e) {
+      e.preventDefault();
+      const stockId = document.getElementById("t_stock_id").value;
+      const mpn = document.getElementById("t_mpn").value;
+      const qtyToTake = parseInt(document.getElementById("t_qty").value, 10);
+      const engineer = document.getElementById("t_engineer").value.trim();
+      const note = document.getElementById("t_note").value.trim();
+
+      if (isLiveSupabase) {
+        const { data: loc } = await supabaseClient.from("stock_locations").select("*").eq("id", stockId).single();
+        const newQty = Math.max(0, loc.quantity - qtyToTake);
+        await supabaseClient.from("stock_locations").update({ quantity: newQty }).eq("id", stockId);
+        await supabaseClient.from("transactions").insert({
+          component_mpn: mpn, department: loc.department, engineer_name: engineer,
+          action_type: "TAKE", qty_changed: -qtyToTake, project_note: note
+        });
+        await loadInventory();
+      } else {
+        componentsData.forEach(c => {
+          const loc = (c.stock_locations || []).find(s => s.id === stockId);
+          if (loc) {
+            loc.quantity = Math.max(0, loc.quantity - qtyToTake);
+            transactionsData.unshift({
+              component_mpn: mpn, department: loc.department, engineer_name: engineer,
+              action_type: "TAKE", qty_changed: -qtyToTake, project_note: note,
+              created_at: new Date().toISOString()
+            });
+          }
+        });
+        saveLocalFallback();
+        renderInventory();
+        renderTransactions();
+      }
+      document.getElementById("takePartForm").reset();
+      closeModal("takePartModal");
+    }
+
+    function prefillRestock(mpn, category, lcsc, mouser, pkg, desc) {
+      document.getElementById("f_mpn").value = mpn;
+      document.getElementById("f_category").value = category;
+      document.getElementById("f_lcsc").value = lcsc;
+      document.getElementById("f_mouser").value = mouser;
+      document.getElementById("f_package").value = pkg;
+      document.getElementById("f_desc").value = desc;
+      openModal("addPartModal");
+    }
+
+    // ============================================================================
+    // 5. BOM PRE-ORDER CHECKER
+    // ============================================================================
+    function runBomCheck() {
+      const raw = document.getElementById("bomInput").value;
+      const tokens = raw.split(/[\n,;]+/).map(t => t.trim().toUpperCase()).filter(Boolean);
+      const container = document.getElementById("bomResults");
+      if (!tokens.length) return;
+
+      container.innerHTML = tokens.map(token => {
+        const match = componentsData.find(c =>
+          c.mpn.toUpperCase() === token || (c.lcsc_pn && c.lcsc_pn.toUpperCase() === token)
+        );
+        if (match) {
+          const breakdown = (match.stock_locations || [])
+            .map(s => `${s.department}: ${s.quantity} pcs (${s.storage_bin})`).join(" | ");
+          return `
+            <div class="p-3 bg-emerald-50 flex justify-between items-center text-xs">
+              <div>
+                <span class="font-mono font-bold text-emerald-900">${token}</span>
+                <span class="ml-2 text-emerald-700 font-semibold">✓ AVAILABLE IN COMPANY</span>
+                <div class="text-slate-600 mt-0.5">${breakdown}</div>
+              </div>
+            </div>`;
+        } else {
+          return `
+            <div class="p-3 bg-white flex justify-between items-center text-xs">
+              <span class="font-mono font-bold text-slate-700">${token}</span>
+              <span class="text-amber-600 font-semibold">Not in stock — Needs LCSC/Mouser Order</span>
+            </div>`;
+        }
+      }).join("");
+    }
+
+    function openModal(id) { document.getElementById(id).classList.remove("hidden"); document.getElementById(id).classList.add("flex"); }
+    function closeModal(id) { document.getElementById(id).classList.add("hidden"); document.getElementById(id).classList.remove("flex"); }
+
+    loadInventory();
+  </script>
+</body>
+</html>
