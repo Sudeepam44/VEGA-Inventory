@@ -8,6 +8,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- SheetJS for parsing LCSC (.xls) and Mouser (.xlsx / .csv) files directly in browser -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     .dept-Automotive { background-color: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
     .dept-Battery { background-color: #dcfce7; color: #166534; border: 1px solid #86efac; }
@@ -24,18 +26,21 @@
         <div class="bg-blue-600 p-2 rounded-lg font-bold text-lg tracking-wider">PCB</div>
         <div>
           <h1 class="text-xl font-bold">Cross-Department Component Hub</h1>
-          <p class="text-xs text-slate-400">Automotive • Battery • Chargenet — Stop Duplicate LCSC & Mouser Orders</p>
+          <p class="text-xs text-slate-400">Automotive • Battery • Chargenet — LCSC & Mouser Inventory Manager</p>
         </div>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-2.5">
         <span id="dbStatusBadge" class="text-xs px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
           Mode: Local Demo
         </span>
+        <button onclick="openModal('uploadBomModal')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow-sm">
+          ⬆ Upload LCSC / Mouser BOM
+        </button>
         <button onclick="openModal('addPartModal')" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
-          + Add / Restock Part
+          + Add Single Part
         </button>
         <button onclick="openModal('bomCheckModal')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
-          BOM Pre-Order Checker
+          Pre-Order Checker
         </button>
       </div>
     </div>
@@ -68,7 +73,7 @@
     <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-center">
       <div class="flex-1 min-w-[260px]">
         <input id="searchInput" type="text" oninput="renderInventory()"
-          placeholder="Search by MPN (e.g. BQ25620, CC2640), LCSC C-Number, Value (10k), or Footprint (0603)..."
+          placeholder="Search by MPN (e.g. CC2745, STM32F103, L99DZ200), LCSC C#, Mouser #, Project (ETX_OTA_TOOL), or Owner..."
           class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
       </div>
       <div>
@@ -101,33 +106,111 @@
               <th class="py-3.5 px-4">MPN & Supplier Links</th>
               <th class="py-3.5 px-4">Category & Package</th>
               <th class="py-3.5 px-4">Specs / Description</th>
-              <th class="py-3.5 px-4">Stock by Department (Bin & Holder)</th>
+              <th class="py-3.5 px-4">Stock by Department (Project/Bin & Owner)</th>
               <th class="py-3.5 px-4 text-right">Total Qty</th>
               <th class="py-3.5 px-4 text-center">Actions</th>
             </tr>
           </thead>
-          <tbody id="inventoryTableBody" class="divide-y divide-slate-200 text-sm">
-            <!-- Populated by JS -->
-          </tbody>
+          <tbody id="inventoryTableBody" class="divide-y divide-slate-200 text-sm"></tbody>
         </table>
       </div>
     </div>
 
     <!-- Recent Component Sharing / Transaction Log -->
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-      <h2 class="text-sm font-bold text-slate-700 uppercase mb-3">Recent Component Activity & Inter-Department Sharing</h2>
-      <div id="txLogContainer" class="space-y-2 text-xs text-slate-600 max-h-48 overflow-y-auto">
-        <!-- Populated by JS -->
-      </div>
+      <h2 class="text-sm font-bold text-slate-700 uppercase mb-3">Recent Component Activity & BOM Uploads</h2>
+      <div id="txLogContainer" class="space-y-2 text-xs text-slate-600 max-h-48 overflow-y-auto"></div>
     </div>
 
   </main>
 
-  <!-- MODAL 1: Add / Restock Component -->
+  <!-- MODAL: Upload LCSC / Mouser BOM File -->
+  <div id="uploadBomModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl max-w-3xl w-full p-6 shadow-xl space-y-4 max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center border-b pb-3">
+        <div>
+          <h3 class="font-bold text-lg text-slate-900">Upload LCSC or Mouser BOM File (.xls, .xlsx, .csv)</h3>
+          <p class="text-xs text-slate-500">Automatically extracts MPN, LCSC#, Mouser#, Package, Quantity, and Project/Bin and assigns to the selected Owner</p>
+        </div>
+        <button onclick="closeModal('uploadBomModal')" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm bg-slate-50 p-4 rounded-xl border border-slate-200">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">1. Select Department*</label>
+          <select id="bom_dept" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white font-medium">
+            <option value="Automotive">Automotive</option>
+            <option value="Battery">Battery</option>
+            <option value="Chargenet">Chargenet</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">2. Component Owner / Member*</label>
+          <input id="bom_owner" list="memberList" required placeholder="Select or type name (e.g. Sudeepa)"
+            class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white">
+          <datalist id="memberList">
+            <option value="Sudeepa">
+            <option value="Kasun">
+            <option value="Nuwan">
+            <option value="Chathura">
+            <option value="Shared Lab">
+          </datalist>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">3. Default Bin / Project Tag</label>
+          <input id="bom_bin" placeholder="Auto-uses BOM Customer Part # if blank"
+            class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white">
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <input id="bomFileInput" type="file" accept=".xls,.xlsx,.csv" onchange="previewBomFile(event)"
+          class="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border rounded-lg p-1.5">
+        <div class="flex items-center gap-2 text-xs text-slate-600 whitespace-nowrap">
+          <input id="useOrderQtyCheckbox" type="checkbox" checked onchange="reparseCurrentFile()" class="rounded">
+          <label for="useOrderQtyCheckbox">Use <strong>Order Qty</strong> (actual bought)</label>
+        </div>
+      </div>
+
+      <!-- Preview Table -->
+      <div id="bomPreviewContainer" class="hidden flex-1 overflow-y-auto border border-slate-200 rounded-lg">
+        <div class="bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 flex justify-between items-center sticky top-0 border-b">
+          <span id="bomPreviewSummary">Detected 0 components</span>
+          <span id="bomSourceBadge" class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800"></span>
+        </div>
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-50 text-slate-500 border-b">
+              <th class="p-2">MPN</th>
+              <th class="p-2">Supplier #</th>
+              <th class="p-2">Category</th>
+              <th class="p-2">Package</th>
+              <th class="p-2">Project / Bin</th>
+              <th class="p-2 text-right">Qty</th>
+            </tr>
+          </thead>
+          <tbody id="bomPreviewBody" class="divide-y"></tbody>
+        </table>
+      </div>
+
+      <div class="flex justify-between items-center pt-2 border-t">
+        <span id="bomUploadStatus" class="text-xs text-slate-500">Select an LCSC (.xls) or Mouser (.xlsx) BOM file above.</span>
+        <div class="flex gap-2">
+          <button type="button" onclick="closeModal('uploadBomModal')" class="px-4 py-2 rounded-lg border text-sm text-slate-600">Cancel</button>
+          <button id="confirmBomUploadBtn" onclick="commitBomToDatabase()" disabled
+            class="px-5 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed transition">
+            Import & Update Database
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 1: Add / Restock Single Component -->
   <div id="addPartModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
     <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl space-y-4">
       <div class="flex justify-between items-center border-b pb-3">
-        <h3 class="font-bold text-lg">Add LCSC / Mouser Component to Stock</h3>
+        <h3 class="font-bold text-lg">Add / Restock Single Component</h3>
         <button onclick="closeModal('addPartModal')" class="text-slate-400 hover:text-slate-600">&times;</button>
       </div>
       <form id="addPartForm" onsubmit="handleAddPart(event)" class="space-y-3 text-sm">
@@ -151,11 +234,11 @@
         <div class="grid grid-cols-3 gap-3">
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">LCSC Part #</label>
-            <input id="f_lcsc" placeholder="e.g. C524812" class="w-full border rounded-lg px-3 py-2 uppercase">
+            <input id="f_lcsc" placeholder="e.g. C1517619" class="w-full border rounded-lg px-3 py-2 uppercase">
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">Mouser Part #</label>
-            <input id="f_mouser" placeholder="e.g. 595-BQ25620" class="w-full border rounded-lg px-3 py-2">
+            <input id="f_mouser" placeholder="e.g. 595-CC2640R2FRGZT" class="w-full border rounded-lg px-3 py-2">
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">Package / Footprint</label>
@@ -164,7 +247,7 @@
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">Specs / Value Description*</label>
-          <input id="f_desc" required placeholder="e.g. I2C Single-Cell Li-Ion Battery Charger IC" class="w-full border rounded-lg px-3 py-2">
+          <input id="f_desc" required placeholder="e.g. 100uF 25V Aluminum Polymer Capacitor" class="w-full border rounded-lg px-3 py-2">
         </div>
         <hr class="my-2">
         <div class="grid grid-cols-2 gap-3">
@@ -178,16 +261,16 @@
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">Quantity Added*</label>
-            <input id="f_qty" type="number" min="1" required placeholder="50" class="w-full border rounded-lg px-3 py-2">
+            <input id="f_qty" type="number" min="1" required placeholder="25" class="w-full border rounded-lg px-3 py-2">
           </div>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Storage Bin / Drawer Code*</label>
-            <input id="f_bin" required placeholder="e.g. BAT-BOX-04" class="w-full border rounded-lg px-3 py-2">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Storage Bin / Project*</label>
+            <input id="f_bin" required placeholder="e.g. ETX_OTA_TOOL" class="w-full border rounded-lg px-3 py-2">
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Member Name / Holder*</label>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Owner / Member Name*</label>
             <input id="f_owner" required placeholder="e.g. Sudeepa" class="w-full border rounded-lg px-3 py-2">
           </div>
         </div>
@@ -219,11 +302,11 @@
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">Your Name & Department*</label>
-          <input id="t_engineer" required placeholder="e.g. Kasun (Chargenet)" class="w-full border rounded-lg px-3 py-2">
+          <input id="t_engineer" required placeholder="e.g. Kasun (Battery)" class="w-full border rounded-lg px-3 py-2">
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">Project / PCB Board Note*</label>
-          <input id="t_note" required placeholder="e.g. Borrowed for Charger Control PCB Rev 1.2" class="w-full border rounded-lg px-3 py-2">
+          <input id="t_note" required placeholder="e.g. Used for EVCU 2.1 build" class="w-full border rounded-lg px-3 py-2">
         </div>
         <div class="flex justify-end gap-2 pt-3">
           <button type="button" onclick="closeModal('takePartModal')" class="px-4 py-2 rounded-lg border text-slate-600">Cancel</button>
@@ -239,11 +322,11 @@
       <div class="flex justify-between items-center border-b pb-3">
         <div>
           <h3 class="font-bold text-lg">Pre-Order BOM Checker (Avoid Duplicate Orders)</h3>
-          <p class="text-xs text-slate-500">Paste a list of MPNs or LCSC C-Numbers from your Altium/KiCad BOM before ordering</p>
+          <p class="text-xs text-slate-500">Paste MPNs, LCSC C-Numbers, or Mouser PNs before buying</p>
         </div>
         <button onclick="closeModal('bomCheckModal')" class="text-slate-400 hover:text-slate-600">&times;</button>
       </div>
-      <textarea id="bomInput" rows="4" placeholder="Paste MPNs or LCSC numbers separated by commas or newlines (e.g. CC2640R2FRGZR, C132315, BQ25622, SN65HVD230)..."
+      <textarea id="bomInput" rows="4" placeholder="e.g. CC2640R2FRGZT, L99DZ200GTR, C1517619, TCAN3403DRBRQ1..."
         class="w-full border rounded-lg p-3 text-sm font-mono"></textarea>
       <button onclick="runBomCheck()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold">
         Check Existing Company Stock
@@ -262,50 +345,307 @@
     const isLiveSupabase = SUPABASE_URL.startsWith("https://") && !SUPABASE_URL.includes("YOUR_");
     const supabaseClient = isLiveSupabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
+    let componentsData = [];
+    let transactionsData = [];
+    let parsedBomItems = [];
+    let lastUploadedWorkbook = null;
+
     // ============================================================================
-    // 2. INITIAL SAMPLE DATA (Used automatically until Supabase keys are added)
+    // 2. AUTO-CATEGORIZER FOR LCSC & MOUSER DESCRIPTIONS
     // ============================================================================
-    let componentsData = [
-      {
-        id: "c1", mpn: "CC2640R2FRGZR", lcsc_pn: "C132315", mouser_pn: "595-CC2640R2FRGZR",
-        category: "MCU / RF", package: "VQFN-48", description: "SimpleLink BLE 5.0 Wireless MCU 2.4GHz",
-        stock_locations: [
-          { id: "s1", department: "Automotive", owner_person: "Sudeepa", storage_bin: "AUTO-IC-01", quantity: 18 },
-          { id: "s2", department: "Chargenet", owner_person: "Nuwan", storage_bin: "CHG-MCU-03", quantity: 6 }
-        ]
-      },
-      {
-        id: "c2", mpn: "BQ25620RYKR", lcsc_pn: "C5291044", mouser_pn: "595-BQ25620RYKR",
-        category: "PMIC / BMS", package: "WQFN-24", description: "I2C 3.5A Single-Cell Battery Charger w/ NVDC",
-        stock_locations: [
-          { id: "s3", department: "Battery", owner_person: "Kasun", storage_bin: "BAT-PMIC-02", quantity: 35 },
-          { id: "s4", department: "Automotive", owner_person: "Sudeepa", storage_bin: "AUTO-IC-04", quantity: 12 }
-        ]
-      },
-      {
-        id: "c3", mpn: "TIC12400QDCPRQ1", lcsc_pn: "C2061421", mouser_pn: "595-TIC12400QDCPRQ1",
-        category: "Interface / CAN", package: "HTSSOP-38", description: "24-Input Automotive Multiple Switch Detection Interface",
-        stock_locations: [
-          { id: "s5", department: "Automotive", owner_person: "Sudeepa", storage_bin: "AUTO-IC-02", quantity: 22 }
-        ]
-      },
-      {
-        id: "c4", mpn: "RC0603FR-0710KL", lcsc_pn: "C25804", mouser_pn: "603-RC0603FR-0710KL",
-        category: "Passives", package: "0603", description: "10kΩ ±1% 0.1W SMD Thick Film Resistor",
-        stock_locations: [
-          { id: "s6", department: "Automotive", owner_person: "Lab Book 1", storage_bin: "AUTO-SMD-R1", quantity: 1450 },
-          { id: "s7", department: "Battery", owner_person: "Lab Book 2", storage_bin: "BAT-SMD-R1", quantity: 800 },
-          { id: "s8", department: "Chargenet", owner_person: "Chathura", storage_bin: "CHG-SMD-R4", quantity: 2200 }
-        ]
+    function autoCategorize(mpn, desc, pkg) {
+      const text = `${mpn} ${desc} ${pkg}`.toUpperCase();
+      if (/MCU|MICROCONTROLLER|STM32|CC2640|CC2745|SPC582|ESP32|HLK-B40|BLUETOOTH|WIRELESS/.test(text)) return "MCU / RF";
+      if (/TPS62|BQ24|BQ25|LDO|REGULATOR|CONVERTER|REF3140|VOLTAGE REFERENCE|CHARGER|A5975/.test(text)) return "PMIC / BMS";
+      if (/MOSFET|BTT6050|TLE75008|L99DZ200|L99UDL01|STD95N4F3|ULQ2003|PROFET|SPIDER|H-BRIDGE|TRANSISTOR|BJT/.test(text)) return "Power / MOSFET";
+      if (/TCAN|CAN |LIN |CP2102|DAC7552|BU97510|TLP293|OPTO|TRANSCEIVER|INTERFACE|DRIVER/.test(text)) return "Interface / CAN";
+      if (/HEADER|CONN|TST-107|RELAY|TERMINAL|SOCKET|USB/.test(text)) return "Connectors / Relays";
+      return "Passives";
+    }
+
+    // ============================================================================
+    // 3. PARSE LCSC (.xls) AND MOUSER (.xlsx) BOM FILES
+    // ============================================================================
+    function previewBomFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        lastUploadedWorkbook = XLSX.read(data, { type: "array" });
+        parseWorkbookData(lastUploadedWorkbook);
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function reparseCurrentFile() {
+      if (lastUploadedWorkbook) parseWorkbookData(lastUploadedWorkbook);
+    }
+
+    function parseWorkbookData(workbook) {
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+      const useOrderQty = document.getElementById("useOrderQtyCheckbox").checked;
+
+      parsedBomItems = [];
+      let detectedType = "Unknown";
+
+      // Check if it's an LCSC BOM Quotation (Header at row index 3 where row[3][0] == 'LCSC#')
+      const lcscHeaderRowIndex = rows.findIndex(r => String(r[0]).trim() === "LCSC#" && r.includes("LCSC Matching Results") === false);
+
+      // Check if it's a Mouser BOM (Row 0 has 'Mouser Part Number' or 'Mfr Part Number')
+      const mouserHeaderRowIndex = rows.findIndex(r => r.some(cell => String(cell).includes("Mouser Part Number")));
+
+      if (lcscHeaderRowIndex !== -1 && rows[lcscHeaderRowIndex].length >= 20) {
+        detectedType = "LCSC BOM Export";
+        for (let i = lcscHeaderRowIndex + 1; i < rows.length; i++) {
+          const r = rows[i];
+          if (!r || r.length === 0) continue;
+
+          // LCSC Columns:
+          // Col 0: Uploaded LCSC#, Col 2: Uploaded Mrf#, Col 3: Uploaded Desc, Col 4: Uploaded Pkg, Col 6: Customer Part Number, Col 7: Uploaded Qty
+          // Col 10: Matched Mrf#, Col 12: Order Qty., Col 15: Matched LCSC#, Col 16: Matched Package, Col 23: Matched Description
+          const matchedMpn = String(r[10] || "").trim();
+          const isDeleted = !matchedMpn || matchedMpn.startsWith("-");
+
+          const lcscPn = String((!isDeleted ? r[15] : r[0]) || r[0] || "").trim().toUpperCase();
+          let mpn = (!isDeleted ? matchedMpn : String(r[2] || r[3] || lcscPn).trim()).toUpperCase();
+
+          // Skip totally empty rows
+          if (!mpn || mpn.startsWith("-")) continue;
+
+          const pkg = String((!isDeleted && r[16] ? r[16] : r[4]) || "").trim();
+          const desc = String((!isDeleted && r[23] ? r[23] : r[3]) || mpn).trim();
+          const projectBin = String(r[6] || "").trim() || "LCSC-BOM";
+
+          let rawQty = useOrderQty && !isDeleted && !isNaN(parseInt(r[12], 10))
+            ? parseInt(r[12], 10)
+            : parseInt(r[7], 10);
+
+          if (isNaN(rawQty) || rawQty <= 0) rawQty = 1;
+
+          parsedBomItems.push({
+            mpn,
+            lcsc_pn: lcscPn.startsWith("C") ? lcscPn : "",
+            mouser_pn: "",
+            category: autoCategorize(mpn, desc, pkg),
+            package: pkg,
+            description: desc,
+            project_bin: projectBin,
+            quantity: rawQty
+          });
+        }
+      } else if (mouserHeaderRowIndex !== -1) {
+        detectedType = "Mouser BOM Export";
+        const headers = rows[mouserHeaderRowIndex].map(h => String(h).trim());
+        const idxMpn = headers.indexOf("Mfr Part Number");
+        const idxMouser = headers.indexOf("Mouser Part Number") !== -1 ? headers.indexOf("Mouser Part Number") : headers.indexOf("Mouser Part Number (Input)");
+        const idxDesc = headers.indexOf("Description");
+        const idxCustPart = headers.indexOf("Customer Part #");
+        const idxOrderQty = headers.indexOf("Order Quantity");
+        const idxQty1 = headers.indexOf("Quantity 1");
+        const idxPkg = headers.indexOf("Package Type");
+
+        for (let i = mouserHeaderRowIndex + 1; i < rows.length; i++) {
+          const r = rows[i];
+          const mpn = String(r[idxMpn] || "").trim().toUpperCase();
+          if (!mpn) continue;
+
+          const mouserPn = String(r[idxMouser] || "").trim();
+          const desc = String(r[idxDesc] || mpn).trim();
+          const projectBin = String(r[idxCustPart] || "").trim() || "MOUSER-BOM";
+          const pkg = String(r[idxPkg] || "").trim();
+
+          let rawQty = useOrderQty && idxOrderQty !== -1 && !isNaN(parseInt(r[idxOrderQty], 10))
+            ? parseInt(r[idxOrderQty], 10)
+            : parseInt(r[idxQty1], 10);
+          if (isNaN(rawQty) || rawQty <= 0) rawQty = 1;
+
+          parsedBomItems.push({
+            mpn,
+            lcsc_pn: "",
+            mouser_pn: mouserPn,
+            category: autoCategorize(mpn, desc, pkg),
+            package: pkg,
+            description: desc,
+            project_bin: projectBin,
+            quantity: rawQty
+          });
+        }
       }
-    ];
 
-    let transactionsData = [
-      { component_mpn: "BQ25620RYKR", department: "Battery", engineer_name: "Sudeepa (Automotive)", action_type: "TAKE", qty_changed: -4, project_note: "Borrowed for Keyfob Charger Rev 2", created_at: new Date().toISOString() }
-    ];
+      // Render Preview Table
+      const container = document.getElementById("bomPreviewContainer");
+      const tbody = document.getElementById("bomPreviewBody");
+      const btn = document.getElementById("confirmBomUploadBtn");
+
+      if (parsedBomItems.length > 0) {
+        container.classList.remove("hidden");
+        document.getElementById("bomPreviewSummary").textContent = `Parsed ${parsedBomItems.length} valid line items ready to import`;
+        document.getElementById("bomSourceBadge").textContent = detectedType;
+        btn.disabled = false;
+
+        tbody.innerHTML = parsedBomItems.map(item => `
+          <tr class="hover:bg-slate-50">
+            <td class="p-2 font-mono font-bold text-slate-800">${item.mpn}</td>
+            <td class="p-2 font-mono text-blue-600">${item.lcsc_pn || item.mouser_pn || "—"}</td>
+            <td class="p-2">${item.category}</td>
+            <td class="p-2 font-mono text-slate-500">${item.package || "—"}</td>
+            <td class="p-2 text-slate-600">${item.project_bin}</td>
+            <td class="p-2 text-right font-bold text-emerald-700">+${item.quantity}</td>
+          </tr>
+        `).join("");
+      } else {
+        container.classList.add("hidden");
+        btn.disabled = true;
+        alert("Could not detect valid LCSC or Mouser BOM rows in this file.");
+      }
+    }
 
     // ============================================================================
-    // 3. DATA LOADING & RENDERING
+    // 4. COMMIT PARSED BOM ITEMS TO DATABASE (SUPABASE OR LOCAL)
+    // ============================================================================
+    async function commitBomToDatabase() {
+      const department = document.getElementById("bom_dept").value;
+      const owner_person = document.getElementById("bom_owner").value.trim();
+      const customBin = document.getElementById("bom_bin").value.trim();
+
+      if (!owner_person) {
+        alert("Please enter or select the Component Owner / Member name before importing.");
+        document.getElementById("bom_owner").focus();
+        return;
+      }
+
+      const btn = document.getElementById("confirmBomUploadBtn");
+      const status = document.getElementById("bomUploadStatus");
+      btn.disabled = true;
+      status.textContent = `Importing ${parsedBomItems.length} parts for ${owner_person} (${department})...`;
+
+      for (const item of parsedBomItems) {
+        const binToUse = customBin || item.project_bin;
+
+        if (isLiveSupabase) {
+          // 1. Upsert or find Master Component
+          let { data: existingComp } = await supabaseClient.from("components").select("*").eq("mpn", item.mpn).maybeSingle();
+          if (!existingComp) {
+            const { data: created } = await supabaseClient.from("components").insert({
+              mpn: item.mpn,
+              lcsc_pn: item.lcsc_pn || null,
+              mouser_pn: item.mouser_pn || null,
+              category: item.category,
+              package: item.package,
+              description: item.description
+            }).select().single();
+            existingComp = created;
+          } else {
+            // Fill missing supplier numbers if needed
+            const updates = {};
+            if (!existingComp.lcsc_pn && item.lcsc_pn) updates.lcsc_pn = item.lcsc_pn;
+            if (!existingComp.mouser_pn && item.mouser_pn) updates.mouser_pn = item.mouser_pn;
+            if (Object.keys(updates).length > 0) {
+              await supabaseClient.from("components").update(updates).eq("id", existingComp.id);
+            }
+          }
+
+          if (existingComp) {
+            // 2. Check if this Owner + Department + Bin already holds this component
+            let { data: existingLoc } = await supabaseClient.from("stock_locations")
+              .select("*")
+              .eq("component_id", existingComp.id)
+              .eq("department", department)
+              .eq("owner_person", owner_person)
+              .eq("storage_bin", binToUse)
+              .maybeSingle();
+
+            if (existingLoc) {
+              await supabaseClient.from("stock_locations")
+                .update({ quantity: existingLoc.quantity + item.quantity })
+                .eq("id", existingLoc.id);
+            } else {
+              await supabaseClient.from("stock_locations").insert({
+                component_id: existingComp.id,
+                department,
+                owner_person,
+                storage_bin: binToUse,
+                quantity: item.quantity
+              });
+            }
+          }
+        } else {
+          // Local Demo Mode
+          let comp = componentsData.find(c => c.mpn.toUpperCase() === item.mpn.toUpperCase());
+          if (!comp) {
+            comp = {
+              id: "c_" + Math.random().toString(36).slice(2, 9),
+              mpn: item.mpn,
+              lcsc_pn: item.lcsc_pn,
+              mouser_pn: item.mouser_pn,
+              category: item.category,
+              package: item.package,
+              description: item.description,
+              stock_locations: []
+            };
+            componentsData.push(comp);
+          } else {
+            if (!comp.lcsc_pn && item.lcsc_pn) comp.lcsc_pn = item.lcsc_pn;
+            if (!comp.mouser_pn && item.mouser_pn) comp.mouser_pn = item.mouser_pn;
+          }
+
+          let loc = comp.stock_locations.find(
+            s => s.department === department &&
+                 s.owner_person.toLowerCase() === owner_person.toLowerCase() &&
+                 s.storage_bin.toLowerCase() === binToUse.toLowerCase()
+          );
+          if (loc) {
+            loc.quantity += item.quantity;
+          } else {
+            comp.stock_locations.push({
+              id: "s_" + Math.random().toString(36).slice(2, 9),
+              department,
+              owner_person,
+              storage_bin: binToUse,
+              quantity: item.quantity
+            });
+          }
+        }
+      }
+
+      // Log bulk transaction summary
+      const summaryNote = `Imported ${parsedBomItems.length} BOM lines (${customBin || parsedBomItems[0]?.project_bin || 'BOM'})`;
+      if (isLiveSupabase) {
+        await supabaseClient.from("transactions").insert({
+          component_mpn: `BOM (${parsedBomItems.length} parts)`,
+          department,
+          engineer_name: owner_person,
+          action_type: "BOM_UPLOAD",
+          qty_changed: parsedBomItems.reduce((acc, i) => acc + i.quantity, 0),
+          project_note: summaryNote
+        });
+        await loadInventory();
+      } else {
+        transactionsData.unshift({
+          component_mpn: `BOM (${parsedBomItems.length} parts)`,
+          department,
+          engineer_name: owner_person,
+          action_type: "BOM_UPLOAD",
+          qty_changed: parsedBomItems.reduce((acc, i) => acc + i.quantity, 0),
+          project_note: summaryNote,
+          created_at: new Date().toISOString()
+        });
+        saveLocalFallback();
+        renderInventory();
+        renderTransactions();
+      }
+
+      status.textContent = "Import complete!";
+      document.getElementById("bomFileInput").value = "";
+      document.getElementById("bomPreviewContainer").classList.add("hidden");
+      closeModal("uploadBomModal");
+    }
+
+    // ============================================================================
+    // 5. INITIAL SAMPLE DATA & RENDERING
     // ============================================================================
     async function loadInventory() {
       const badge = document.getElementById("dbStatusBadge");
@@ -313,14 +653,45 @@
         badge.textContent = "Mode: Live Supabase Cloud";
         badge.className = "text-xs px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40";
         const { data: comps } = await supabaseClient.from("components").select("*, stock_locations(*)").order("mpn");
-        const { data: txs } = await supabaseClient.from("transactions").select("*").order("created_at", { ascending: false }).limit(20);
+        const { data: txs } = await supabaseClient.from("transactions").select("*").order("created_at", { ascending: false }).limit(25);
         if (comps) componentsData = comps;
         if (txs) transactionsData = txs;
       } else {
-        const saved = localStorage.getItem("pcb_demo_inventory");
-        const savedTx = localStorage.getItem("pcb_demo_tx");
-        if (saved) componentsData = JSON.parse(saved);
-        if (savedTx) transactionsData = JSON.parse(savedTx);
+        const saved = localStorage.getItem("pcb_demo_inventory_v2");
+        const savedTx = localStorage.getItem("pcb_demo_tx_v2");
+        if (saved) {
+          componentsData = JSON.parse(saved);
+          transactionsData = savedTx ? JSON.parse(savedTx) : [];
+        } else {
+          // Pre-seeded with real rows from your uploaded LCSC & Mouser BOMs
+          componentsData = [
+            {
+              id: "c1", mpn: "CC2640R2FRGZT", lcsc_pn: "C132315", mouser_pn: "595-CC2640R2FRGZT",
+              category: "MCU / RF", package: "RGZ-48", description: "RF Microcontrollers - MCU SimpleLink Bluetooth low energy Wireless MCU",
+              stock_locations: [{ id: "s1", department: "Automotive", owner_person: "Sudeepa", storage_bin: "ETX_DBOM_6_22_26", quantity: 5 }]
+            },
+            {
+              id: "c2", mpn: "CC2745R10E0WRHARQ1", lcsc_pn: "", mouser_pn: "595-CC2745R10E0WRRQ1",
+              category: "MCU / RF", package: "VQFN-40", description: "Texas Instruments Automotive SimpleLink Bluetooth 6.0 LE",
+              stock_locations: [{ id: "s2", department: "Automotive", owner_person: "Sudeepa", storage_bin: "ETX_DBOM_6_22_26", quantity: 5 }]
+            },
+            {
+              id: "c3", mpn: "L99DZ200GTR", lcsc_pn: "", mouser_pn: "511-L99DZ200GTR",
+              category: "Power / MOSFET", package: "LQFP-64", description: "Automotive Front Door device with LIN and HS-CAN providing Dual H-bridge driving",
+              stock_locations: [{ id: "s3", department: "Automotive", owner_person: "Sudeepa", storage_bin: "ETX_DBOM_6_22_26", quantity: 5 }]
+            },
+            {
+              id: "c4", mpn: "TCAN3403DRBRQ1", lcsc_pn: "C32921356", mouser_pn: "",
+              category: "Interface / CAN", package: "SON-8-EP(3x3)", description: "3.3V CAN FD Transceiver 8Mbps SON-8-EP(3x3)",
+              stock_locations: [{ id: "s4", department: "Automotive", owner_person: "Sudeepa", storage_bin: "ETX_OBD_II", quantity: 5 }]
+            },
+            {
+              id: "c5", mpn: "STM32F103C8T6", lcsc_pn: "C8734", mouser_pn: "",
+              category: "MCU / RF", package: "LQFP-48(7x7)", description: "ARM Cortex-M3 32 Bit 72MHz LQFP-48(7x7) Microcontrollers RoHS",
+              stock_locations: [{ id: "s5", department: "Automotive", owner_person: "Sudeepa", storage_bin: "ETX_OBD_II", quantity: 5 }]
+            }
+          ];
+        }
       }
       renderInventory();
       renderTransactions();
@@ -328,8 +699,8 @@
 
     function saveLocalFallback() {
       if (!isLiveSupabase) {
-        localStorage.setItem("pcb_demo_inventory", JSON.stringify(componentsData));
-        localStorage.setItem("pcb_demo_tx", JSON.stringify(transactionsData));
+        localStorage.setItem("pcb_demo_inventory_v2", JSON.stringify(componentsData));
+        localStorage.setItem("pcb_demo_tx_v2", JSON.stringify(transactionsData));
       }
     }
 
@@ -356,20 +727,22 @@
       document.getElementById("statChargenetStock").textContent = chgTotal.toLocaleString() + " pcs";
 
       const filtered = componentsData.filter(c => {
+        const locs = c.stock_locations || [];
         const matchesQuery = !query ||
           c.mpn.toLowerCase().includes(query) ||
           (c.lcsc_pn && c.lcsc_pn.toLowerCase().includes(query)) ||
           (c.mouser_pn && c.mouser_pn.toLowerCase().includes(query)) ||
           (c.package && c.package.toLowerCase().includes(query)) ||
-          (c.description && c.description.toLowerCase().includes(query));
+          (c.description && c.description.toLowerCase().includes(query)) ||
+          locs.some(s => (s.owner_person && s.owner_person.toLowerCase().includes(query)) || (s.storage_bin && s.storage_bin.toLowerCase().includes(query)));
 
         const matchesCat = catFilter === "ALL" || c.category === catFilter;
-        const matchesDept = deptFilter === "ALL" || (c.stock_locations || []).some(s => s.department === deptFilter && s.quantity > 0);
+        const matchesDept = deptFilter === "ALL" || locs.some(s => s.department === deptFilter && s.quantity > 0);
         return matchesQuery && matchesCat && matchesDept;
       });
 
       if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">No matching components found. Safe to order from LCSC/Mouser!</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">No matching components found.</td></tr>`;
         return;
       }
 
@@ -380,7 +753,7 @@
         const badgesHtml = locs.map(s => `
           <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-md text-xs font-medium mr-2 mb-1 dept-${s.department}">
             <span><strong>${s.department}:</strong> ${s.quantity} pcs</span>
-            <span class="opacity-75">(${s.storage_bin} • ${s.owner_person})</span>
+            <span class="opacity-80">(${s.storage_bin} • <strong>${s.owner_person}</strong>)</span>
             <button onclick="openTakeModal('${s.id}', '${c.mpn}', '${s.department}', ${s.quantity}, '${s.storage_bin}')"
               class="ml-1 bg-white/80 hover:bg-white text-slate-800 px-1.5 py-0.5 rounded border border-current text-[11px] font-bold">
               Use / Borrow
@@ -404,13 +777,13 @@
               <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-medium">${c.category}</span>
               <div class="text-xs text-slate-500 font-mono mt-1">${c.package || "—"}</div>
             </td>
-            <td class="py-3.5 px-4 text-slate-700 max-w-xs">${c.description}</td>
+            <td class="py-3.5 px-4 text-slate-700 max-w-xs text-xs leading-relaxed">${c.description}</td>
             <td class="py-3.5 px-4">${badgesHtml || '<span class="text-xs text-slate-400">Out of stock</span>'}</td>
             <td class="py-3.5 px-4 text-right font-bold text-base ${totalQty > 0 ? 'text-emerald-700' : 'text-red-500'}">${totalQty.toLocaleString()}</td>
             <td class="py-3.5 px-4 text-center">
               <button onclick="prefillRestock('${c.mpn}', '${c.category}', '${c.lcsc_pn || ''}', '${c.mouser_pn || ''}', '${c.package || ''}', '${c.description.replace(/'/g, "")}')"
                 class="text-xs text-blue-600 hover:text-blue-800 font-semibold border border-blue-200 bg-blue-50 px-2.5 py-1 rounded">
-                + Add Dept Stock
+                + Add Stock
               </button>
             </td>
           </tr>
@@ -439,7 +812,7 @@
     }
 
     // ============================================================================
-    // 4. ADD / RESTOCK & TAKE / BORROW ACTIONS
+    // 6. SINGLE PART ADD & BORROW HANDLERS
     // ============================================================================
     async function handleAddPart(e) {
       e.preventDefault();
@@ -455,7 +828,7 @@
       const owner_person = document.getElementById("f_owner").value.trim();
 
       if (isLiveSupabase) {
-        let { data: existingComp } = await supabaseClient.from("components").select("*").eq("mpn", mpn).single();
+        let { data: existingComp } = await supabaseClient.from("components").select("*").eq("mpn", mpn).maybeSingle();
         if (!existingComp) {
           const { data: created } = await supabaseClient.from("components")
             .insert({ mpn, category, lcsc_pn, mouser_pn, package: pkg, description }).select().single();
@@ -466,7 +839,7 @@
         });
         await supabaseClient.from("transactions").insert({
           component_mpn: mpn, department, engineer_name: owner_person,
-          action_type: "ADD", qty_changed: quantity, project_note: `Added to bin ${storage_bin}`
+          action_type: "ADD", qty_changed: quantity, project_note: `Added to ${storage_bin}`
         });
         await loadInventory();
       } else {
@@ -475,12 +848,10 @@
           comp = { id: "c_" + Date.now(), mpn, category, lcsc_pn, mouser_pn, package: pkg, description, stock_locations: [] };
           componentsData.unshift(comp);
         }
-        comp.stock_locations.push({
-          id: "s_" + Date.now(), department, owner_person, storage_bin, quantity
-        });
+        comp.stock_locations.push({ id: "s_" + Date.now(), department, owner_person, storage_bin, quantity });
         transactionsData.unshift({
           component_mpn: mpn, department, engineer_name: owner_person,
-          action_type: "ADD", qty_changed: quantity, project_note: `Added to bin ${storage_bin}`,
+          action_type: "ADD", qty_changed: quantity, project_note: `Added to ${storage_bin}`,
           created_at: new Date().toISOString()
         });
         saveLocalFallback();
@@ -496,7 +867,7 @@
       document.getElementById("t_mpn").value = mpn;
       document.getElementById("t_qty").max = currentQty;
       document.getElementById("t_part_summary").textContent = `${mpn} (${dept} Stock)`;
-      document.getElementById("t_stock_summary").textContent = `Bin: ${bin} • Available: ${currentQty} pcs`;
+      document.getElementById("t_stock_summary").textContent = `Project/Bin: ${bin} • Available: ${currentQty} pcs`;
       openModal("takePartModal");
     }
 
@@ -547,9 +918,6 @@
       openModal("addPartModal");
     }
 
-    // ============================================================================
-    // 5. BOM PRE-ORDER CHECKER
-    // ============================================================================
     function runBomCheck() {
       const raw = document.getElementById("bomInput").value;
       const tokens = raw.split(/[\n,;]+/).map(t => t.trim().toUpperCase()).filter(Boolean);
@@ -558,11 +926,13 @@
 
       container.innerHTML = tokens.map(token => {
         const match = componentsData.find(c =>
-          c.mpn.toUpperCase() === token || (c.lcsc_pn && c.lcsc_pn.toUpperCase() === token)
+          c.mpn.toUpperCase() === token ||
+          (c.lcsc_pn && c.lcsc_pn.toUpperCase() === token) ||
+          (c.mouser_pn && c.mouser_pn.toUpperCase() === token)
         );
         if (match) {
           const breakdown = (match.stock_locations || [])
-            .map(s => `${s.department}: ${s.quantity} pcs (${s.storage_bin})`).join(" | ");
+            .map(s => `${s.department}: ${s.quantity} pcs (Owner: ${s.owner_person}, Bin: ${s.storage_bin})`).join(" | ");
           return `
             <div class="p-3 bg-emerald-50 flex justify-between items-center text-xs">
               <div>
