@@ -3,225 +3,676 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PCB Component Inventory — Automotive | Battery | Chargenet</title>
+  <title>VEGA Component Hub — Automotive | Battery | Chargenet</title>
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#1e1b4b',
+            },
+            auto: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              200: '#bfdbfe',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            },
+            battery: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              200: '#bbf7d0',
+              600: '#16a34a',
+              700: '#15803d',
+              800: '#166534',
+              900: '#14532d',
+            },
+            charge: {
+              50: '#fff7ed',
+              100: '#ffedd5',
+              200: '#fed7aa',
+              600: '#ea580c',
+              700: '#c2410c',
+              800: '#9a3412',
+              900: '#7c2d12',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- SheetJS for parsing LCSC (.xls) and Mouser (.xlsx / .csv) files directly in browser -->
+  <!-- SheetJS for parsing & exporting LCSC (.xls) and Mouser (.xlsx / .csv) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
   <style>
-    .dept-Automotive { background-color: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
-    .dept-Battery { background-color: #dcfce7; color: #166534; border: 1px solid #86efac; }
-    .dept-Chargenet { background-color: #ffedd5; color: #9a3412; border: 1px solid #fdba74; }
-    .dept-Shared { background-color: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+    /* Custom scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* Department Tag Accents */
+    .dept-badge-Automotive {
+      background-color: #eff6ff;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+    }
+    .dept-badge-Battery {
+      background-color: #f0fdf4;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+    }
+    .dept-badge-Chargenet {
+      background-color: #fff7ed;
+      color: #9a3412;
+      border: 1px solid #fed7aa;
+    }
+    .dept-badge-Shared {
+      background-color: #faf5ff;
+      color: #6b21a8;
+      border: 1px solid #e9d5ff;
+    }
+
+    .animate-slide-down {
+      animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes slideDown {
+      from { transform: translateY(-12px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen font-sans">
+<body class="bg-slate-50 text-slate-800 min-h-screen font-sans antialiased flex flex-col">
 
-  <!-- Top Navigation Bar -->
-  <header class="bg-slate-900 text-white shadow-md">
-    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-4">
-      <div class="flex items-center gap-3">
-        <div class="bg-blue-600 p-2 rounded-lg font-bold text-lg tracking-wider">PCB</div>
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-md w-full pointer-events-none"></div>
+
+  <!-- Navigation Bar -->
+  <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30 border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap justify-between items-center gap-4">
+      
+      <!-- Brand & Title -->
+      <div class="flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-amber-500 flex items-center justify-center font-bold text-white shadow-md text-lg tracking-wider">
+          ⚡
+        </div>
         <div>
-          <h1 class="text-xl font-bold">Cross-Department Component Hub</h1>
-          <p class="text-xs text-slate-400">Automotive • Battery • Chargenet — LCSC & Mouser Inventory Manager</p>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-bold tracking-tight text-white">VEGA Component Hub</h1>
+            <span class="text-[10px] font-semibold uppercase tracking-wider bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700">v2.5</span>
+          </div>
+          <p class="text-xs text-slate-400">Cross-Department PCB & Component Sharing — <span class="text-blue-400 font-medium">Automotive</span> • <span class="text-emerald-400 font-medium">Battery</span> • <span class="text-amber-400 font-medium">Chargenet</span></p>
         </div>
       </div>
-      <div class="flex flex-wrap items-center gap-2.5">
-        <span id="dbStatusBadge" class="text-xs px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
-          Mode: Local Demo
+
+      <!-- Quick Actions -->
+      <div class="flex flex-wrap items-center gap-2 sm:gap-2.5 text-sm">
+        <!-- DB Status -->
+        <span id="dbStatusBadge" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1.5 font-mono">
+          <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+          <span>Checking sync...</span>
         </span>
-        <button onclick="openModal('uploadBomModal')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow-sm">
-          ⬆ Upload LCSC / Mouser BOM
+
+        <!-- Pre-Order Checker Button (Prominent to save money!) -->
+        <button onclick="switchTab('checker'); openModal('bomCheckModal')" 
+          class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition shadow flex items-center gap-1.5">
+          <span>💰</span>
+          <span>Pre-Order Checker</span>
         </button>
-        <button onclick="openModal('addPartModal')" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
-          + Add Single Part
+
+        <!-- Import BOM -->
+        <button onclick="openModal('uploadBomModal')" 
+          class="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition shadow flex items-center gap-1.5">
+          <span>⬆</span>
+          <span>Import LCSC/Mouser BOM</span>
         </button>
-        <button onclick="openModal('bomCheckModal')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
-          Pre-Order Checker
+
+        <!-- Add Single Part -->
+        <button onclick="openModal('addPartModal')" 
+          class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5">
+          <span>+</span>
+          <span>Add Part</span>
+        </button>
+
+        <!-- Export Dropdown / Button -->
+        <button onclick="exportInventoryToExcel()" title="Export all stock to Excel spreadsheet"
+          class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-1.5">
+          <span>📊</span>
+          <span>Export Excel</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Navigation Tabs -->
+    <div class="bg-slate-950/80 px-4 sm:px-6 border-t border-slate-800/80">
+      <div class="max-w-7xl mx-auto flex gap-1 sm:gap-4 overflow-x-auto text-xs sm:text-sm font-medium py-1">
+        <button id="tabBtn-inventory" onclick="switchTab('inventory')" class="tab-btn px-3 py-2 border-b-2 border-blue-500 text-blue-400 flex items-center gap-2 whitespace-nowrap">
+          <span>📦 Component Inventory</span>
+          <span id="badgeTabInventoryCount" class="bg-blue-500/20 text-blue-300 text-[11px] px-1.5 py-0.2 rounded-full font-mono">0</span>
+        </button>
+        <button id="tabBtn-checker" onclick="switchTab('checker')" class="tab-btn px-3 py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap">
+          <span>🔍 Pre-Order Duplicate Checker</span>
+          <span class="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">Save Money</span>
+        </button>
+        <button id="tabBtn-members" onclick="switchTab('members')" class="tab-btn px-3 py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap">
+          <span>👥 Member Drawers ("Who Has What?")</span>
+        </button>
+        <button id="tabBtn-activity" onclick="switchTab('activity')" class="tab-btn px-3 py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap">
+          <span>📜 Audit & Activity Log</span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- Main Content Container -->
-  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+  <!-- Duplicate Stock Savings Banner -->
+  <div id="duplicateAlertBanner" class="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border-b border-amber-200 py-2.5 px-4 text-xs sm:text-sm">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2 text-amber-900">
+        <span class="text-base">💡</span>
+        <span id="duplicateAlertText" class="font-medium">Analyzing stock across Automotive, Battery, and Chargenet...</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="filterDuplicatesOnly()" class="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 px-3 py-1 rounded text-xs font-semibold transition">
+          View Overlapping Components
+        </button>
+        <button onclick="document.getElementById('duplicateAlertBanner').classList.add('hidden')" class="text-amber-700 hover:text-amber-900 text-xs px-2 py-1">Dismiss</button>
+      </div>
+    </div>
+  </div>
 
-    <!-- KPI Summary Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <p class="text-xs text-slate-500 uppercase font-semibold">Unique MPNs</p>
-        <p id="statTotalParts" class="text-2xl font-bold text-slate-800 mt-1">0</p>
+  <!-- Main Content Area -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full space-y-6">
+
+    <!-- TAB 1: INVENTORY CATALOG -->
+    <div id="tabContent-inventory" class="tab-content space-y-5">
+      
+      <!-- Department Summary KPI Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        
+        <!-- Total Unique Parts -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-slate-300 transition">
+          <div class="flex items-center justify-between text-slate-500">
+            <span class="text-xs uppercase font-semibold tracking-wider">Unique MPNs</span>
+            <span class="text-base">💎</span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="statTotalParts" class="text-2xl sm:text-3xl font-extrabold text-slate-900">0</span>
+            <span class="text-xs text-slate-400">part numbers</span>
+          </div>
+          <div class="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+            <span>Total pooled: <strong id="statTotalStockAll">0 pcs</strong></span>
+          </div>
+        </div>
+
+        <!-- Automotive -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-blue-200 hover:border-blue-300 transition bg-gradient-to-b from-blue-50/30 to-white cursor-pointer" onclick="filterByDeptDirect('Automotive')">
+          <div class="flex items-center justify-between text-blue-700">
+            <span class="text-xs uppercase font-semibold tracking-wider flex items-center gap-1.5">
+              <span>🚗</span> Automotive
+            </span>
+            <span class="text-[11px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-medium">Dept</span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="statAutoStock" class="text-2xl sm:text-3xl font-extrabold text-blue-900">0</span>
+            <span class="text-xs text-blue-600">pcs</span>
+          </div>
+          <p id="statAutoHolders" class="text-[11px] text-blue-600/80 mt-1 truncate">0 members holding</p>
+        </div>
+
+        <!-- Battery -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-emerald-200 hover:border-emerald-300 transition bg-gradient-to-b from-emerald-50/30 to-white cursor-pointer" onclick="filterByDeptDirect('Battery')">
+          <div class="flex items-center justify-between text-emerald-700">
+            <span class="text-xs uppercase font-semibold tracking-wider flex items-center gap-1.5">
+              <span>🔋</span> Battery
+            </span>
+            <span class="text-[11px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-medium">Dept</span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="statBatteryStock" class="text-2xl sm:text-3xl font-extrabold text-emerald-900">0</span>
+            <span class="text-xs text-emerald-600">pcs</span>
+          </div>
+          <p id="statBatHolders" class="text-[11px] text-emerald-600/80 mt-1 truncate">0 members holding</p>
+        </div>
+
+        <!-- Chargenet -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-orange-200 hover:border-orange-300 transition bg-gradient-to-b from-orange-50/30 to-white cursor-pointer" onclick="filterByDeptDirect('Chargenet')">
+          <div class="flex items-center justify-between text-orange-700">
+            <span class="text-xs uppercase font-semibold tracking-wider flex items-center gap-1.5">
+              <span>⚡</span> Chargenet
+            </span>
+            <span class="text-[11px] bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded font-medium">Dept</span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="statChargenetStock" class="text-2xl sm:text-3xl font-extrabold text-orange-900">0</span>
+            <span class="text-xs text-orange-600">pcs</span>
+          </div>
+          <p id="statChgHolders" class="text-[11px] text-orange-600/80 mt-1 truncate">0 members holding</p>
+        </div>
+
       </div>
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-blue-200">
-        <p class="text-xs text-blue-600 uppercase font-semibold">Automotive Stock</p>
-        <p id="statAutoStock" class="text-2xl font-bold text-blue-900 mt-1">0 pcs</p>
+
+      <!-- Quick Filter Bar -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
+        
+        <!-- Department Quick Pills -->
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div class="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
+            <span class="text-slate-400 mr-1 text-[11px] uppercase tracking-wider">Department:</span>
+            <button onclick="setDeptFilter('ALL')" id="pill-dept-ALL" class="dept-pill px-3 py-1.5 rounded-lg bg-slate-900 text-white transition shadow-sm">
+              All Departments
+            </button>
+            <button onclick="setDeptFilter('Automotive')" id="pill-dept-Automotive" class="dept-pill px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-800 transition">
+              🚗 Automotive (<span id="pillCountAuto">0</span>)
+            </button>
+            <button onclick="setDeptFilter('Battery')" id="pill-dept-Battery" class="dept-pill px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 transition">
+              🔋 Battery (<span id="pillCountBat">0</span>)
+            </button>
+            <button onclick="setDeptFilter('Chargenet')" id="pill-dept-Chargenet" class="dept-pill px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-orange-50 text-slate-700 hover:text-orange-800 transition">
+              ⚡ Chargenet (<span id="pillCountChg">0</span>)
+            </button>
+          </div>
+
+          <!-- View Mode & Quick Duplicate Toggle -->
+          <div class="flex items-center gap-2">
+            <button id="toggleDuplicatesOnlyBtn" onclick="toggleDuplicatesOnly()" 
+              class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition flex items-center gap-1.5">
+              <span>⚠️</span>
+              <span>Only Overlapping Parts</span>
+            </button>
+            
+            <div class="bg-slate-100 p-0.5 rounded-lg border border-slate-200 flex items-center text-xs">
+              <button id="viewBtnTable" onclick="setViewMode('table')" class="px-2.5 py-1 rounded-md bg-white shadow-xs font-semibold text-slate-800 transition">
+                Table View
+              </button>
+              <button id="viewBtnCards" onclick="setViewMode('cards')" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition">
+                Cards View
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search & Filter Controls -->
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+          
+          <!-- Search Input -->
+          <div class="sm:col-span-5 relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+              🔍
+            </span>
+            <input id="searchInput" type="text" oninput="renderInventory()"
+              placeholder="Search MPN (CC2640, STM32), LCSC C#, Mouser #, Member (Sudeepa), Bin (ETX)..."
+              class="w-full pl-9 pr-8 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+            <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 text-sm">
+              ✕
+            </button>
+          </div>
+
+          <!-- Member Filter (CRUCIAL for answering "Who has what?") -->
+          <div class="sm:col-span-3">
+            <div class="relative">
+              <select id="memberFilter" onchange="renderInventory()" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white font-medium text-slate-700">
+                <option value="ALL">👤 All Team Members</option>
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+          </div>
+
+          <!-- Category Filter -->
+          <div class="sm:col-span-3">
+            <select id="catFilter" onchange="renderInventory()" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white font-medium text-slate-700">
+              <option value="ALL">🏷 All Component Categories</option>
+              <option value="MCU / RF">MCU / RF / Wireless</option>
+              <option value="PMIC / BMS">PMIC / BMS / Power IC</option>
+              <option value="Power / MOSFET">Power / MOSFET / Drivers</option>
+              <option value="Interface / CAN">Interface / CAN / LIN / Transceiver</option>
+              <option value="Passives">Passives (R / C / L / Crystal)</option>
+              <option value="Connectors / Relays">Connectors / Relays / Terminals</option>
+            </select>
+          </div>
+
+          <!-- Reset Filter Button -->
+          <div class="sm:col-span-1 text-right">
+            <button onclick="resetAllFilters()" title="Reset all search filters" class="w-full py-2 px-2 text-xs font-semibold text-slate-500 hover:text-slate-800 border border-slate-200 rounded-lg hover:bg-slate-50">
+              Reset
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Active Filter Indicator Banner -->
+        <div id="activeFilterPillBar" class="hidden flex flex-wrap items-center gap-1.5 text-xs text-slate-500 pt-1">
+          <span>Active filters:</span>
+          <span id="activeFilterTags" class="flex flex-wrap gap-1"></span>
+        </div>
+
       </div>
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-emerald-200">
-        <p class="text-xs text-emerald-600 uppercase font-semibold">Battery Stock</p>
-        <p id="statBatteryStock" class="text-2xl font-bold text-emerald-900 mt-1">0 pcs</p>
+
+      <!-- Inventory Results Summary -->
+      <div class="flex justify-between items-center px-1 text-xs text-slate-500">
+        <div>
+          Showing <span id="filteredCount" class="font-bold text-slate-800">0</span> of <span id="totalCatalogCount" class="font-bold text-slate-800">0</span> unique components
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span> Automotive</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Battery</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span> Chargenet</span>
+        </div>
       </div>
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-orange-200">
-        <p class="text-xs text-orange-600 uppercase font-semibold">Chargenet Stock</p>
-        <p id="statChargenetStock" class="text-2xl font-bold text-orange-900 mt-1">0 pcs</p>
+
+      <!-- TABLE VIEW -->
+      <div id="inventoryTableView" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 text-xs uppercase font-semibold tracking-wider border-b border-slate-200">
+                <th class="py-3 px-4">Manufacturer Part # (MPN) & Supplier</th>
+                <th class="py-3 px-4">Category & Package</th>
+                <th class="py-3 px-4">Description / Specs</th>
+                <th class="py-3 px-4">Stock by Department (Location & Owner)</th>
+                <th class="py-3 px-4 text-right">Total Available</th>
+                <th class="py-3 px-4 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CARDS VIEW (Optional modern layout) -->
+      <div id="inventoryCardsView" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+    </div>
+
+    <!-- TAB 2: PRE-ORDER DUPLICATE CHECKER -->
+    <div id="tabContent-checker" class="tab-content hidden space-y-5">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-5">
+        
+        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-100 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-lg font-bold text-slate-900">Pre-Order BOM & Duplicate Checker</h2>
+              <span class="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-full font-bold">Prevents Money Waste</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">
+              Before placing a new order on <strong>LCSC</strong> or <strong>Mouser</strong>, paste your shopping list or BOM below to see who in <span class="text-blue-600 font-semibold">Automotive</span>, <span class="text-emerald-600 font-semibold">Battery</span>, or <span class="text-orange-600 font-semibold">Chargenet</span> already has these parts in their drawers!
+            </p>
+          </div>
+          <button onclick="loadSampleCheckerList()" class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-lg">
+            Load Sample Order List
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          
+          <!-- Input Area -->
+          <div class="lg:col-span-5 space-y-3">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+              Paste MPNs, LCSC C-Numbers, or Mouser PNs
+            </label>
+            <textarea id="bomInput" rows="7" 
+              placeholder="Paste part numbers separated by newlines or commas:&#10;CC2640R2FRGZT&#10;STM32F103C8T6&#10;C1517619&#10;L99DZ200GTR&#10;TCAN3403DRBRQ1&#10;BQ25620RYKR..."
+              class="w-full border border-slate-300 rounded-xl p-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"></textarea>
+            
+            <div class="flex gap-2">
+              <button onclick="runBomCheck()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition shadow flex items-center justify-center gap-2">
+                <span>🔍</span>
+                <span>Check Company Inventory</span>
+              </button>
+              <button onclick="document.getElementById('bomInput').value = ''; document.getElementById('bomResults').innerHTML = '';" class="px-3 py-2.5 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 text-sm">
+                Clear
+              </button>
+            </div>
+
+            <!-- Upload File directly into checker -->
+            <div class="p-3 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-xs text-slate-600 text-center">
+              <span>Or drop an LCSC / Mouser order file: </span>
+              <input type="file" accept=".xls,.xlsx,.csv" onchange="handleCheckerFileUpload(event)" class="text-xs mt-1 block w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-slate-200 file:text-slate-700 hover:file:bg-slate-300 cursor-pointer">
+            </div>
+          </div>
+
+          <!-- Results Area -->
+          <div class="lg:col-span-7 flex flex-col space-y-3">
+            <div class="flex justify-between items-center">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">Comparison Results</h3>
+              <span id="checkerSummaryBadge" class="text-xs text-slate-500">Ready to check</span>
+            </div>
+
+            <div id="bomResults" class="flex-1 min-h-[220px] max-h-[460px] overflow-y-auto border border-slate-200 rounded-xl p-3 bg-slate-50/50 space-y-2">
+              <div class="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400">
+                <span class="text-3xl mb-2">📋</span>
+                <p class="font-medium text-sm text-slate-600">Enter component numbers on the left to start checking</p>
+                <p class="text-xs text-slate-400 mt-1">We will match against all Automotive, Battery, and Chargenet stocks and tell you who to borrow from.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
       </div>
     </div>
 
-    <!-- Search & Filter Bar -->
-    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-center">
-      <div class="flex-1 min-w-[260px]">
-        <input id="searchInput" type="text" oninput="renderInventory()"
-          placeholder="Search by MPN (e.g. CC2745, STM32F103, L99DZ200), LCSC C#, Mouser #, Project (ETX_OTA_TOOL), or Owner..."
-          class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-      </div>
-      <div>
-        <select id="deptFilter" onchange="renderInventory()" class="px-3 py-2.5 rounded-lg border border-slate-300 text-sm bg-white">
-          <option value="ALL">All Departments</option>
-          <option value="Automotive">Automotive Only</option>
-          <option value="Battery">Battery Only</option>
-          <option value="Chargenet">Chargenet Only</option>
-        </select>
-      </div>
-      <div>
-        <select id="catFilter" onchange="renderInventory()" class="px-3 py-2.5 rounded-lg border border-slate-300 text-sm bg-white">
-          <option value="ALL">All Categories</option>
-          <option value="MCU / RF">MCU / RF</option>
-          <option value="PMIC / BMS">PMIC / BMS</option>
-          <option value="Power / MOSFET">Power / MOSFET</option>
-          <option value="Interface / CAN">Interface / CAN</option>
-          <option value="Passives">Passives (R / C / L)</option>
-          <option value="Connectors / Relays">Connectors / Relays</option>
-        </select>
+    <!-- TAB 3: MEMBER DRAWERS ("WHO HAS WHAT?") -->
+    <div id="tabContent-members" class="tab-content hidden space-y-5">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-100 pb-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900">Team Member Drawers & Storage Locations</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Quickly see exactly what components each engineer or shared lab desk holds.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <input id="memberSearchInput" type="text" oninput="renderMemberDirectory()" 
+              placeholder="Search member or bin..." 
+              class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs w-48 focus:outline-none focus:ring-1 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <div id="membersDirectoryContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Populated dynamically -->
+        </div>
       </div>
     </div>
 
-    <!-- Inventory Table -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr class="bg-slate-100 text-slate-600 text-xs uppercase border-b border-slate-200">
-              <th class="py-3.5 px-4">MPN & Supplier Links</th>
-              <th class="py-3.5 px-4">Category & Package</th>
-              <th class="py-3.5 px-4">Specs / Description</th>
-              <th class="py-3.5 px-4">Stock by Department (Project/Bin & Owner)</th>
-              <th class="py-3.5 px-4 text-right">Total Qty</th>
-              <th class="py-3.5 px-4 text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="inventoryTableBody" class="divide-y divide-slate-200 text-sm"></tbody>
-        </table>
-      </div>
-    </div>
+    <!-- TAB 4: AUDIT & RECENT ACTIVITY LOG -->
+    <div id="tabContent-activity" class="tab-content hidden space-y-5">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+        
+        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-100 pb-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900">Component Transactions & Sharing Log</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Full audit trail of who borrowed, restocked, transferred, or imported parts.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="exportTransactionsToExcel()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-1.5 rounded-lg border font-medium flex items-center gap-1.5">
+              <span>📥</span> Export Audit Log
+            </button>
+          </div>
+        </div>
 
-    <!-- Recent Component Sharing / Transaction Log -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-      <h2 class="text-sm font-bold text-slate-700 uppercase mb-3">Recent Component Activity & BOM Uploads</h2>
-      <div id="txLogContainer" class="space-y-2 text-xs text-slate-600 max-h-48 overflow-y-auto"></div>
+        <!-- Filters for Log -->
+        <div class="flex flex-wrap items-center gap-3">
+          <input id="txSearchInput" type="text" oninput="renderTransactions()" placeholder="Filter by MPN, Engineer, or Project..."
+            class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs w-64 focus:outline-none focus:ring-1 focus:ring-blue-500">
+          
+          <select id="txActionFilter" onchange="renderTransactions()" class="px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white text-slate-700">
+            <option value="ALL">All Actions</option>
+            <option value="TAKE">Borrowed / Used</option>
+            <option value="ADD">Added / Restocked</option>
+            <option value="TRANSFER">Transferred</option>
+            <option value="BOM_UPLOAD">BOM Bulk Import</option>
+          </select>
+        </div>
+
+        <div class="border border-slate-200 rounded-xl overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead class="bg-slate-100 text-slate-600 font-semibold uppercase">
+                <tr>
+                  <th class="py-2.5 px-3">Date & Time</th>
+                  <th class="py-2.5 px-3">Action</th>
+                  <th class="py-2.5 px-3">Component (MPN)</th>
+                  <th class="py-2.5 px-3">Qty Changed</th>
+                  <th class="py-2.5 px-3">Engineer / Member</th>
+                  <th class="py-2.5 px-3">Department</th>
+                  <th class="py-2.5 px-3">Project / Purpose Note</th>
+                </tr>
+              </thead>
+              <tbody id="txFullTableBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
     </div>
 
   </main>
 
-  <!-- MODAL: Upload LCSC / Mouser BOM File -->
-  <div id="uploadBomModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl max-w-3xl w-full p-6 shadow-xl space-y-4 max-h-[90vh] flex flex-col">
+  <!-- Footer -->
+  <footer class="bg-white border-t border-slate-200 py-4 px-6 text-center text-xs text-slate-500 mt-auto">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
+      <div>
+        <strong>VEGA Inventory Hub</strong> — Internal PCB & Component Management for Automotive, Battery, and Chargenet.
+      </div>
+      <div class="text-slate-400">
+        Stop duplicate ordering • Share components • Save company resources
+      </div>
+    </div>
+  </footer>
+
+  <!-- ============================================================================ -->
+  <!-- MODAL: Upload LCSC / Mouser BOM File                                         -->
+  <!-- ============================================================================ -->
+  <div id="uploadBomModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-4 max-h-[92vh] flex flex-col animate-slide-down">
+      
+      <!-- Modal Header -->
       <div class="flex justify-between items-center border-b pb-3">
         <div>
-          <h3 class="font-bold text-lg text-slate-900">Upload LCSC or Mouser BOM File (.xls, .xlsx, .csv)</h3>
-          <p class="text-xs text-slate-500">Automatically extracts MPN, LCSC#, Mouser#, Package, Quantity, and Project/Bin and assigns to the selected Owner</p>
+          <div class="flex items-center gap-2">
+            <h3 class="font-bold text-lg text-slate-900">Import BOM File (.xls, .xlsx, .csv)</h3>
+            <span class="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded font-semibold">LCSC & Mouser</span>
+          </div>
+          <p class="text-xs text-slate-500 mt-0.5">Upload a BOM quote or order confirmation to register components into your department</p>
         </div>
-        <button onclick="closeModal('uploadBomModal')" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+        <button onclick="closeModal('uploadBomModal')" class="text-slate-400 hover:text-slate-600 text-2xl font-bold leading-none">&times;</button>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm bg-slate-50 p-4 rounded-xl border border-slate-200">
+      <!-- Assignee Form Row -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm bg-slate-50 p-3.5 rounded-xl border border-slate-200">
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">1. Select Department*</label>
-          <select id="bom_dept" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white font-medium">
-            <option value="Automotive">Automotive</option>
-            <option value="Battery">Battery</option>
-            <option value="Chargenet">Chargenet</option>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">1. Receiving Department*</label>
+          <select id="bom_dept" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-xs font-medium">
+            <option value="Automotive">🚗 Automotive</option>
+            <option value="Battery">🔋 Battery</option>
+            <option value="Chargenet">⚡ Chargenet</option>
+            <option value="Shared Lab">🏢 Shared Lab</option>
           </select>
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">2. Component Owner / Member*</label>
-          <input id="bom_owner" list="memberList" required placeholder="Select or type name (e.g. Sudeepa)"
-            class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white">
-          <datalist id="memberList">
-            <option value="Sudeepa">
-            <option value="Kasun">
-            <option value="Nuwan">
-            <option value="Chathura">
-            <option value="Shared Lab">
-          </datalist>
+          <input id="bom_owner" list="memberSuggestions" required placeholder="Type or pick (e.g. Sudeepa)"
+            class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-xs font-medium">
+          <datalist id="memberSuggestions"></datalist>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">3. Default Bin / Project Tag</label>
-          <input id="bom_bin" placeholder="Auto-uses BOM Customer Part # if blank"
-            class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">3. Default Storage Bin / Box Tag</label>
+          <input id="bom_bin" placeholder="e.g. Desk Drawer 2, Box A"
+            class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-xs">
         </div>
       </div>
 
-      <div class="flex items-center gap-4">
-        <input id="bomFileInput" type="file" accept=".xls,.xlsx,.csv" onchange="previewBomFile(event)"
-          class="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border rounded-lg p-1.5">
-        <div class="flex items-center gap-2 text-xs text-slate-600 whitespace-nowrap">
-          <input id="useOrderQtyCheckbox" type="checkbox" checked onchange="reparseCurrentFile()" class="rounded">
-          <label for="useOrderQtyCheckbox">Use <strong>Order Qty</strong> (actual bought)</label>
+      <!-- File Upload Zone -->
+      <div id="bomDropZone" class="border-2 border-dashed border-indigo-200 hover:border-indigo-400 rounded-xl p-5 text-center bg-indigo-50/30 transition">
+        <input id="bomFileInput" type="file" accept=".xls,.xlsx,.csv" onchange="previewBomFile(event)" class="hidden">
+        <label for="bomFileInput" class="cursor-pointer flex flex-col items-center justify-center space-y-1">
+          <span class="text-3xl text-indigo-500">📁</span>
+          <span class="text-sm font-semibold text-indigo-900">Click to choose or drag & drop BOM file</span>
+          <span class="text-xs text-slate-500">Supports LCSC Quotations (.xls, .csv) and Mouser BOM Exports (.xlsx, .csv)</span>
+        </label>
+        <div class="mt-2 flex items-center justify-center gap-2 text-xs text-slate-600">
+          <input id="useOrderQtyCheckbox" type="checkbox" checked onchange="reparseCurrentFile()" class="rounded text-indigo-600">
+          <label for="useOrderQtyCheckbox">Use <strong>Order Qty</strong> (actual purchased pieces)</label>
         </div>
       </div>
 
-      <!-- Preview Table -->
-      <div id="bomPreviewContainer" class="hidden flex-1 overflow-y-auto border border-slate-200 rounded-lg">
-        <div class="bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 flex justify-between items-center sticky top-0 border-b">
+      <!-- Preview Table Container -->
+      <div id="bomPreviewContainer" class="hidden flex-1 overflow-y-auto border border-slate-200 rounded-xl text-xs">
+        <div class="bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 flex justify-between items-center sticky top-0 border-b z-10">
           <span id="bomPreviewSummary">Detected 0 components</span>
           <span id="bomSourceBadge" class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800"></span>
         </div>
-        <table class="w-full text-left border-collapse text-xs">
+        <table class="w-full text-left border-collapse">
           <thead>
             <tr class="bg-slate-50 text-slate-500 border-b">
               <th class="p-2">MPN</th>
               <th class="p-2">Supplier #</th>
               <th class="p-2">Category</th>
               <th class="p-2">Package</th>
-              <th class="p-2">Project / Bin</th>
+              <th class="p-2">Bin / Project</th>
               <th class="p-2 text-right">Qty</th>
             </tr>
           </thead>
-          <tbody id="bomPreviewBody" class="divide-y"></tbody>
+          <tbody id="bomPreviewBody" class="divide-y divide-slate-100"></tbody>
         </table>
       </div>
 
+      <!-- Modal Footer -->
       <div class="flex justify-between items-center pt-2 border-t">
-        <span id="bomUploadStatus" class="text-xs text-slate-500">Select an LCSC (.xls) or Mouser (.xlsx) BOM file above.</span>
+        <span id="bomUploadStatus" class="text-xs text-slate-500">Select an LCSC or Mouser BOM above.</span>
         <div class="flex gap-2">
-          <button type="button" onclick="closeModal('uploadBomModal')" class="px-4 py-2 rounded-lg border text-sm text-slate-600">Cancel</button>
+          <button type="button" onclick="closeModal('uploadBomModal')" class="px-4 py-2 rounded-lg border text-xs font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
           <button id="confirmBomUploadBtn" onclick="commitBomToDatabase()" disabled
-            class="px-5 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed transition">
-            Import & Update Database
+            class="px-5 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1.5 shadow">
+            <span>✓</span>
+            <span>Import Components to Inventory</span>
           </button>
         </div>
       </div>
+
     </div>
   </div>
 
-  <!-- MODAL 1: Add / Restock Single Component -->
-  <div id="addPartModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl space-y-4">
+  <!-- ============================================================================ -->
+  <!-- MODAL: Add / Restock Single Component                                       -->
+  <!-- ============================================================================ -->
+  <div id="addPartModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-slide-down">
       <div class="flex justify-between items-center border-b pb-3">
-        <h3 class="font-bold text-lg">Add / Restock Single Component</h3>
-        <button onclick="closeModal('addPartModal')" class="text-slate-400 hover:text-slate-600">&times;</button>
+        <h3 id="addPartModalTitle" class="font-bold text-lg text-slate-900">Add or Restock Single Component</h3>
+        <button onclick="closeModal('addPartModal')" class="text-slate-400 hover:text-slate-600 text-2xl font-bold leading-none">&times;</button>
       </div>
-      <form id="addPartForm" onsubmit="handleAddPart(event)" class="space-y-3 text-sm">
+
+      <form id="addPartForm" onsubmit="handleAddPart(event)" class="space-y-3 text-xs">
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Manufacturer Part # (MPN)*</label>
-            <input id="f_mpn" required placeholder="e.g. BQ25620RYKR" class="w-full border rounded-lg px-3 py-2 uppercase">
+            <label class="block font-semibold text-slate-700 mb-1">Manufacturer Part # (MPN)*</label>
+            <input id="f_mpn" required placeholder="e.g. BQ25620RYKR" oninput="suggestCategoryForMpn(this.value)" class="w-full border rounded-lg px-3 py-2 uppercase font-mono font-bold text-slate-900">
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Category*</label>
-            <select id="f_category" class="w-full border rounded-lg px-3 py-2 bg-white">
+            <label class="block font-semibold text-slate-700 mb-1">Category*</label>
+            <select id="f_category" class="w-full border rounded-lg px-3 py-2 bg-white font-medium">
               <option>MCU / RF</option>
               <option>PMIC / BMS</option>
               <option>Power / MOSFET</option>
@@ -231,141 +682,1146 @@
             </select>
           </div>
         </div>
+
         <div class="grid grid-cols-3 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">LCSC Part #</label>
-            <input id="f_lcsc" placeholder="e.g. C1517619" class="w-full border rounded-lg px-3 py-2 uppercase">
+            <label class="block font-semibold text-slate-700 mb-1">LCSC Part #</label>
+            <input id="f_lcsc" placeholder="e.g. C1517619" class="w-full border rounded-lg px-3 py-2 uppercase font-mono">
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Mouser Part #</label>
-            <input id="f_mouser" placeholder="e.g. 595-CC2640R2FRGZT" class="w-full border rounded-lg px-3 py-2">
+            <label class="block font-semibold text-slate-700 mb-1">Mouser Part #</label>
+            <input id="f_mouser" placeholder="e.g. 595-CC2640R2FRGZT" class="w-full border rounded-lg px-3 py-2 font-mono">
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Package / Footprint</label>
-            <input id="f_package" placeholder="e.g. 0603, WQFN-24" class="w-full border rounded-lg px-3 py-2">
+            <label class="block font-semibold text-slate-700 mb-1">Package / Footprint</label>
+            <input id="f_package" placeholder="e.g. 0603, QFN-32" class="w-full border rounded-lg px-3 py-2 font-mono">
           </div>
         </div>
+
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Specs / Value Description*</label>
-          <input id="f_desc" required placeholder="e.g. 100uF 25V Aluminum Polymer Capacitor" class="w-full border rounded-lg px-3 py-2">
+          <label class="block font-semibold text-slate-700 mb-1">Specs / Description*</label>
+          <input id="f_desc" required placeholder="e.g. 100uF 25V Low ESR Electrolytic Capacitor" class="w-full border rounded-lg px-3 py-2">
         </div>
-        <hr class="my-2">
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Department*</label>
-            <select id="f_dept" class="w-full border rounded-lg px-3 py-2 bg-white">
-              <option>Automotive</option>
-              <option>Battery</option>
-              <option>Chargenet</option>
-            </select>
+
+        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-600">Storage & Ownership Details</div>
+          
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Department*</label>
+              <select id="f_dept" class="w-full border rounded-lg px-3 py-2 bg-white font-medium">
+                <option value="Automotive">🚗 Automotive</option>
+                <option value="Battery">🔋 Battery</option>
+                <option value="Chargenet">⚡ Chargenet</option>
+                <option value="Shared Lab">🏢 Shared Lab</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Quantity Added*</label>
+              <input id="f_qty" type="number" min="1" required placeholder="e.g. 25" class="w-full border rounded-lg px-3 py-2 font-bold text-slate-900">
+            </div>
           </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Quantity Added*</label>
-            <input id="f_qty" type="number" min="1" required placeholder="25" class="w-full border rounded-lg px-3 py-2">
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Owner / Engineer Name*</label>
+              <input id="f_owner" list="memberSuggestions" required placeholder="e.g. Sudeepa" class="w-full border rounded-lg px-3 py-2 font-medium">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Storage Bin / Box / Project*</label>
+              <input id="f_bin" required placeholder="e.g. Bin A-03 / ETX_BOARD" class="w-full border rounded-lg px-3 py-2">
+            </div>
           </div>
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Storage Bin / Project*</label>
-            <input id="f_bin" required placeholder="e.g. ETX_OTA_TOOL" class="w-full border rounded-lg px-3 py-2">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Owner / Member Name*</label>
-            <input id="f_owner" required placeholder="e.g. Sudeepa" class="w-full border rounded-lg px-3 py-2">
-          </div>
-        </div>
-        <div class="flex justify-end gap-2 pt-3">
-          <button type="button" onclick="closeModal('addPartModal')" class="px-4 py-2 rounded-lg border text-slate-600">Cancel</button>
-          <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-500">Save to Inventory</button>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModal('addPartModal')" class="px-4 py-2 rounded-lg border text-slate-600 hover:bg-slate-50 font-medium">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold transition shadow">Save to Inventory</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- MODAL 2: Take / Borrow Component -->
-  <div id="takePartModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-xl space-y-4">
+  <!-- ============================================================================ -->
+  <!-- MODAL: Take / Borrow Component                                              -->
+  <!-- ============================================================================ -->
+  <div id="takePartModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-slide-down">
       <div class="flex justify-between items-center border-b pb-3">
-        <h3 class="font-bold text-lg">Take / Borrow Component</h3>
-        <button onclick="closeModal('takePartModal')" class="text-slate-400 hover:text-slate-600">&times;</button>
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🤝</span>
+          <h3 class="font-bold text-lg text-slate-900">Borrow / Use Component</h3>
+        </div>
+        <button onclick="closeModal('takePartModal')" class="text-slate-400 hover:text-slate-600 text-2xl font-bold leading-none">&times;</button>
       </div>
-      <form id="takePartForm" onsubmit="handleTakePart(event)" class="space-y-3 text-sm">
+
+      <form id="takePartForm" onsubmit="handleTakePart(event)" class="space-y-3 text-xs">
         <input type="hidden" id="t_stock_id">
         <input type="hidden" id="t_mpn">
-        <div class="bg-slate-100 p-3 rounded-lg">
-          <p id="t_part_summary" class="font-bold text-slate-800"></p>
-          <p id="t_stock_summary" class="text-xs text-slate-500 mt-1"></p>
+
+        <!-- Component Summary Box -->
+        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+          <div class="flex justify-between items-start">
+            <div>
+              <span class="text-[10px] uppercase font-bold text-slate-400">Component MPN</span>
+              <p id="t_part_summary" class="font-mono font-bold text-slate-900 text-sm"></p>
+            </div>
+            <span id="t_dept_badge" class="px-2 py-0.5 rounded text-[11px] font-bold"></span>
+          </div>
+          <div class="mt-2 text-slate-600 border-t border-slate-200/60 pt-2 flex justify-between items-center">
+            <span id="t_stock_summary"></span>
+            <span class="text-emerald-700 font-bold" id="t_available_badge"></span>
+          </div>
         </div>
+
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Quantity to Take*</label>
-          <input id="t_qty" type="number" min="1" required class="w-full border rounded-lg px-3 py-2">
+          <label class="block font-semibold text-slate-700 mb-1">Quantity to Take*</label>
+          <input id="t_qty" type="number" min="1" required class="w-full border rounded-lg px-3 py-2 text-sm font-bold text-slate-900">
         </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Your Name*</label>
+            <input id="t_engineer" list="memberSuggestions" required placeholder="e.g. Kasun" class="w-full border rounded-lg px-3 py-2 font-medium">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Your Department*</label>
+            <select id="t_borrower_dept" class="w-full border rounded-lg px-3 py-2 bg-white font-medium">
+              <option value="Automotive">🚗 Automotive</option>
+              <option value="Battery">🔋 Battery</option>
+              <option value="Chargenet">⚡ Chargenet</option>
+              <option value="Shared Lab">🏢 Shared Lab</option>
+            </select>
+          </div>
+        </div>
+
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Your Name & Department*</label>
-          <input id="t_engineer" required placeholder="e.g. Kasun (Battery)" class="w-full border rounded-lg px-3 py-2">
+          <label class="block font-semibold text-slate-700 mb-1">Project / PCB Prototype Purpose*</label>
+          <input id="t_note" required placeholder="e.g. Prototype for BMS V2.1 board bring-up" class="w-full border rounded-lg px-3 py-2">
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Project / PCB Board Note*</label>
-          <input id="t_note" required placeholder="e.g. Used for EVCU 2.1 build" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div class="flex justify-end gap-2 pt-3">
-          <button type="button" onclick="closeModal('takePartModal')" class="px-4 py-2 rounded-lg border text-slate-600">Cancel</button>
-          <button type="submit" class="px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-500">Confirm & Deduct Stock</button>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModal('takePartModal')" class="px-4 py-2 rounded-lg border text-slate-600 hover:bg-slate-50 font-medium">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold transition shadow">
+            Confirm & Deduct Stock
+          </button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- MODAL 3: BOM Pre-Order Checker -->
-  <div id="bomCheckModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-xl space-y-4">
+  <!-- ============================================================================ -->
+  <!-- MODAL: Transfer Component between Departments / Members                      -->
+  <!-- ============================================================================ -->
+  <div id="transferPartModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-slide-down">
       <div class="flex justify-between items-center border-b pb-3">
-        <div>
-          <h3 class="font-bold text-lg">Pre-Order BOM Checker (Avoid Duplicate Orders)</h3>
-          <p class="text-xs text-slate-500">Paste MPNs, LCSC C-Numbers, or Mouser PNs before buying</p>
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🔄</span>
+          <h3 class="font-bold text-lg text-slate-900">Transfer Component</h3>
         </div>
-        <button onclick="closeModal('bomCheckModal')" class="text-slate-400 hover:text-slate-600">&times;</button>
+        <button onclick="closeModal('transferPartModal')" class="text-slate-400 hover:text-slate-600 text-2xl font-bold leading-none">&times;</button>
       </div>
-      <textarea id="bomInput" rows="4" placeholder="e.g. CC2640R2FRGZT, L99DZ200GTR, C1517619, TCAN3403DRBRQ1..."
-        class="w-full border rounded-lg p-3 text-sm font-mono"></textarea>
-      <button onclick="runBomCheck()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold">
-        Check Existing Company Stock
-      </button>
-      <div id="bomResults" class="max-h-64 overflow-y-auto divide-y border rounded-lg"></div>
+
+      <form id="transferPartForm" onsubmit="handleTransferPart(event)" class="space-y-3 text-xs">
+        <input type="hidden" id="tr_stock_id">
+        <input type="hidden" id="tr_mpn">
+
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <p id="tr_summary_title" class="font-mono font-bold text-slate-900"></p>
+          <p id="tr_summary_desc" class="text-slate-500 mt-1"></p>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Quantity to Transfer*</label>
+          <input id="tr_qty" type="number" min="1" required class="w-full border rounded-lg px-3 py-2 text-sm font-bold">
+        </div>
+
+        <div class="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-3">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-indigo-900">Transfer Destination</div>
+          
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">To Department*</label>
+              <select id="tr_to_dept" class="w-full border rounded-lg px-3 py-2 bg-white">
+                <option value="Automotive">🚗 Automotive</option>
+                <option value="Battery">🔋 Battery</option>
+                <option value="Chargenet">⚡ Chargenet</option>
+                <option value="Shared Lab">🏢 Shared Lab</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">To Member Name*</label>
+              <input id="tr_to_owner" list="memberSuggestions" required placeholder="e.g. Nuwan" class="w-full border rounded-lg px-3 py-2">
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">To Storage Bin / Box*</label>
+            <input id="tr_to_bin" required placeholder="e.g. Battery Lab Shelf 2" class="w-full border rounded-lg px-3 py-2">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Transfer Note / Reason*</label>
+          <input id="tr_note" required placeholder="e.g. Transferred for joint CAN bus validation" class="w-full border rounded-lg px-3 py-2">
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModal('transferPartModal')" class="px-4 py-2 rounded-lg border text-slate-600 hover:bg-slate-50 font-medium">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition shadow">
+            Confirm Transfer
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
+  <!-- ============================================================================ -->
+  <!-- JAVASCRIPT APPLICATION LOGIC                                                -->
+  <!-- ============================================================================ -->
   <script>
-    // ============================================================================
-    // 1. SUPABASE CONFIGURATION (Replace with your Supabase URL & Anon Key)
-    // ============================================================================
-    const SUPABASE_URL = "https://btlmrnbuoytmwvfikktm.supabase.co/rest/v1/";
+    // 1. SUPABASE CONFIGURATION
+    // Note: Supabase createClient requires the root URL without '/rest/v1/'
+    const RAW_SUPABASE_URL = "https://btlmrnbuoytmwvfikktm.supabase.co";
+    const SUPABASE_URL = RAW_SUPABASE_URL.replace(/\/rest\/v1\/?$/, "");
     const SUPABASE_ANON_KEY = "sb_publishable_g3kuOq9CYn7icBaMQZSa0Q_gpL1h4Pl";
 
-    const isLiveSupabase = SUPABASE_URL.startsWith("https://") && !SUPABASE_URL.includes("YOUR_");
-    const supabaseClient = isLiveSupabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+    const isLiveConfigured = SUPABASE_URL.startsWith("https://") && !SUPABASE_URL.includes("YOUR_");
+    let supabaseClient = null;
+    let isConnectedToSupabase = false;
 
+    if (isLiveConfigured && window.supabase) {
+      try {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      } catch (e) {
+        console.warn("Supabase init error, running in local mode:", e);
+      }
+    }
+
+    // App State
     let componentsData = [];
     let transactionsData = [];
     let parsedBomItems = [];
     let lastUploadedWorkbook = null;
+    let currentDeptFilter = "ALL";
+    let currentViewMode = "table"; // 'table' or 'cards'
+    let onlyShowDuplicates = false;
 
-    // ============================================================================
-    // 2. AUTO-CATEGORIZER FOR LCSC & MOUSER DESCRIPTIONS
-    // ============================================================================
-    function autoCategorize(mpn, desc, pkg) {
+    const KNOWN_MEMBERS = ["Sudeepa", "Kasun", "Nuwan", "Chathura", "Harsha", "Shared Lab"];
+
+    // 2. TOAST NOTIFICATIONS (No jarring alert popups!)
+    function showToast(message, type = "info", durationMs = 4000) {
+      const container = document.getElementById("toastContainer");
+      const toast = document.createElement("div");
+      
+      const icons = {
+        success: "✓",
+        error: "✕",
+        warning: "⚠️",
+        info: "ℹ"
+      };
+
+      const colors = {
+        success: "bg-emerald-800 text-white border-emerald-700",
+        error: "bg-red-800 text-white border-red-700",
+        warning: "bg-amber-800 text-white border-amber-700",
+        info: "bg-slate-900 text-white border-slate-700"
+      };
+
+      toast.className = `pointer-events-auto p-3.5 rounded-xl shadow-xl border flex items-center justify-between gap-3 text-xs font-medium animate-slide-down ${colors[type] || colors.info}`;
+      toast.innerHTML = `
+        <div class="flex items-center gap-2.5">
+          <span class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center font-bold text-xs">${icons[type] || "•"}</span>
+          <span>${message}</span>
+        </div>
+        <button onclick="this.parentElement.remove()" class="text-white/60 hover:text-white text-base leading-none">&times;</button>
+      `;
+
+      container.appendChild(toast);
+      setTimeout(() => {
+        if (toast.parentElement) {
+          toast.style.opacity = "0";
+          toast.style.transition = "opacity 0.3s ease";
+          setTimeout(() => toast.remove(), 300);
+        }
+      }, durationMs);
+    }
+
+    // 3. AUTO CATEGORIZER
+    function autoCategorize(mpn, desc = "", pkg = "") {
       const text = `${mpn} ${desc} ${pkg}`.toUpperCase();
-      if (/MCU|MICROCONTROLLER|STM32|CC2640|CC2745|SPC582|ESP32|HLK-B40|BLUETOOTH|WIRELESS/.test(text)) return "MCU / RF";
-      if (/TPS62|BQ24|BQ25|LDO|REGULATOR|CONVERTER|REF3140|VOLTAGE REFERENCE|CHARGER|A5975/.test(text)) return "PMIC / BMS";
-      if (/MOSFET|BTT6050|TLE75008|L99DZ200|L99UDL01|STD95N4F3|ULQ2003|PROFET|SPIDER|H-BRIDGE|TRANSISTOR|BJT/.test(text)) return "Power / MOSFET";
-      if (/TCAN|CAN |LIN |CP2102|DAC7552|BU97510|TLP293|OPTO|TRANSCEIVER|INTERFACE|DRIVER/.test(text)) return "Interface / CAN";
-      if (/HEADER|CONN|TST-107|RELAY|TERMINAL|SOCKET|USB/.test(text)) return "Connectors / Relays";
+      if (/MCU|MICROCONTROLLER|STM32|CC2640|CC2745|SPC582|ESP32|HLK-B40|BLUETOOTH|WIRELESS|NORDIC|NRF52|ARM CORTEX/.test(text)) return "MCU / RF";
+      if (/TPS62|BQ24|BQ25|BQ76|LDO|REGULATOR|CONVERTER|REF3140|VOLTAGE REFERENCE|CHARGER|A5975|ISL|PMIC|BMS|BATTERY MANAGEMENT/.test(text)) return "PMIC / BMS";
+      if (/MOSFET|BTT6050|TLE75008|L99DZ200|L99UDL01|STD95N4F3|ULQ2003|PROFET|SPIDER|H-BRIDGE|TRANSISTOR|BJT|GATE DRIVER|IGBT/.test(text)) return "Power / MOSFET";
+      if (/TCAN|CAN |LIN |CP2102|DAC7552|BU97510|TLP293|OPTO|TRANSCEIVER|INTERFACE|RS485|UART|SPI|I2C/.test(text)) return "Interface / CAN";
+      if (/HEADER|CONN|TST-107|RELAY|TERMINAL|SOCKET|USB|JST|MOLEX|SMA|SMA-KE/.test(text)) return "Connectors / Relays";
       return "Passives";
     }
 
-    // ============================================================================
-    // 3. PARSE LCSC (.xls) AND MOUSER (.xlsx) BOM FILES
-    // ============================================================================
+    function suggestCategoryForMpn(mpn) {
+      if (!mpn) return;
+      const cat = autoCategorize(mpn);
+      document.getElementById("f_category").value = cat;
+    }
+
+    // 4. DATA INITIALIZATION & LOADING
+    async function loadInventory() {
+      const badge = document.getElementById("dbStatusBadge");
+      badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span><span>Connecting...</span>`;
+
+      if (supabaseClient) {
+        try {
+          const { data: comps, error: errComp } = await supabaseClient.from("components").select("*, stock_locations(*)").order("mpn");
+          const { data: txs, error: errTx } = await supabaseClient.from("transactions").select("*").order("created_at", { ascending: false }).limit(60);
+
+          if (!errComp && comps) {
+            componentsData = comps;
+            transactionsData = txs || [];
+            isConnectedToSupabase = true;
+            badge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 font-mono";
+            badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span><span>Cloud Live</span>`;
+          } else {
+            throw errComp || new Error("Failed to query Supabase");
+          }
+        } catch (err) {
+          console.warn("Supabase query failed, falling back to LocalStorage:", err);
+          fallbackToLocalStorage(badge);
+        }
+      } else {
+        fallbackToLocalStorage(badge);
+      }
+
+      updateMemberDropdowns();
+      renderInventory();
+      renderTransactions();
+      renderMemberDirectory();
+      analyzeDuplicates();
+    }
+
+    function fallbackToLocalStorage(badge) {
+      isConnectedToSupabase = false;
+      badge.className = "text-xs px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40 flex items-center gap-1.5 font-mono";
+      badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-400"></span><span>Local Workspace</span>`;
+
+      const saved = localStorage.getItem("vega_inventory_v3");
+      const savedTx = localStorage.getItem("vega_tx_v3");
+
+      if (saved) {
+        try {
+          componentsData = JSON.parse(saved);
+          transactionsData = savedTx ? JSON.parse(savedTx) : [];
+        } catch (e) {
+          console.error("Corrupt local storage", e);
+          initDefaultSampleData();
+        }
+      } else {
+        initDefaultSampleData();
+      }
+    }
+
+    function initDefaultSampleData() {
+      // Pre-seeded realistic components across Automotive, Battery, and Chargenet
+      componentsData = [
+        {
+          id: "c1",
+          mpn: "CC2640R2FRGZT",
+          lcsc_pn: "C132315",
+          mouser_pn: "595-CC2640R2FRGZT",
+          category: "MCU / RF",
+          package: "RGZ-48",
+          description: "SimpleLink 2.4 GHz Bluetooth low energy Wireless MCU ARM Cortex-M4",
+          stock_locations: [
+            { id: "s1_1", department: "Automotive", owner_person: "Sudeepa", storage_bin: "ETX_DBOM_6_22", quantity: 15 },
+            { id: "s1_2", department: "Battery", owner_person: "Kasun", storage_bin: "BMS_BLE_DEV", quantity: 8 }
+          ]
+        },
+        {
+          id: "c2",
+          mpn: "CC2745R10E0WRHARQ1",
+          lcsc_pn: "",
+          mouser_pn: "595-CC2745R10E0WRRQ1",
+          category: "MCU / RF",
+          package: "VQFN-40",
+          description: "Texas Instruments Automotive SimpleLink Bluetooth 6.0 Low Energy MCU",
+          stock_locations: [
+            { id: "s2_1", department: "Automotive", owner_person: "Sudeepa", storage_bin: "ETX_DBOM_6_22", quantity: 10 }
+          ]
+        },
+        {
+          id: "c3",
+          mpn: "STM32F103C8T6",
+          lcsc_pn: "C8734",
+          mouser_pn: "511-STM32F103C8T6",
+          category: "MCU / RF",
+          package: "LQFP-48(7x7)",
+          description: "Mainstream Performance Line ARM Cortex-M3 MCU with 64KB Flash, 72MHz",
+          stock_locations: [
+            { id: "s3_1", department: "Automotive", owner_person: "Sudeepa", storage_bin: "ETX_OBD_II", quantity: 20 },
+            { id: "s3_2", department: "Chargenet", owner_person: "Nuwan", storage_bin: "EVSE_CONTROLLER", quantity: 25 },
+            { id: "s3_3", department: "Battery", owner_person: "Kasun", storage_bin: "BMS_SLAVE_A", quantity: 12 }
+          ]
+        },
+        {
+          id: "c4",
+          mpn: "L99DZ200GTR",
+          lcsc_pn: "",
+          mouser_pn: "511-L99DZ200GTR",
+          category: "Power / MOSFET",
+          package: "LQFP-64",
+          description: "Automotive Front Door device with LIN and HS-CAN providing Dual H-bridge driving",
+          stock_locations: [
+            { id: "s4_1", department: "Automotive", owner_person: "Sudeepa", storage_bin: "ETX_DBOM_6_22", quantity: 10 }
+          ]
+        },
+        {
+          id: "c5",
+          mpn: "TCAN3403DRBRQ1",
+          lcsc_pn: "C32921356",
+          mouser_pn: "595-TCAN3403DRBRQ1",
+          category: "Interface / CAN",
+          package: "SON-8-EP(3x3)",
+          description: "Automotive 3.3V CAN FD Transceiver with Standby Mode 8Mbps",
+          stock_locations: [
+            { id: "s5_1", department: "Automotive", owner_person: "Chathura", storage_bin: "ETX_OBD_II", quantity: 18 },
+            { id: "s5_2", department: "Battery", owner_person: "Kasun", storage_bin: "BMS_MAIN_R1", quantity: 22 },
+            { id: "s5_3", department: "Chargenet", owner_person: "Nuwan", storage_bin: "EVSE_CAN_HUB", quantity: 15 }
+          ]
+        },
+        {
+          id: "c6",
+          mpn: "BQ25620RYKR",
+          lcsc_pn: "C2834192",
+          mouser_pn: "595-BQ25620RYKR",
+          category: "PMIC / BMS",
+          package: "WQFN-18",
+          description: "I2C Controlled 1-Cell 3.5A Buck Battery Charger with NVDC Power Path",
+          stock_locations: [
+            { id: "s6_1", department: "Battery", owner_person: "Kasun", storage_bin: "BMS_CHARGER_BOX", quantity: 30 },
+            { id: "s6_2", department: "Chargenet", owner_person: "Nuwan", storage_bin: "DESK_TRAY_3", quantity: 14 }
+          ]
+        },
+        {
+          id: "c7",
+          mpn: "BTT6050-2EKA",
+          lcsc_pn: "C149491",
+          mouser_pn: "726-BTT6050-2EKA",
+          category: "Power / MOSFET",
+          package: "DSO-14",
+          description: "Infineon Smart High-Side Power Switch PROFET 24V Automotive Grade",
+          stock_locations: [
+            { id: "s7_1", department: "Automotive", owner_person: "Sudeepa", storage_bin: "ETX_POWER_STAGE", quantity: 12 }
+          ]
+        },
+        {
+          id: "c8",
+          mpn: "100uF 25V 0805 X5R",
+          lcsc_pn: "C15849",
+          mouser_pn: "",
+          category: "Passives",
+          package: "0805",
+          description: "100uF 25V Ceramic Multilayer Capacitor (MLCC) +/-20%",
+          stock_locations: [
+            { id: "s8_1", department: "Automotive", owner_person: "Chathura", storage_bin: "REEL_RACK_A", quantity: 450 },
+            { id: "s8_2", department: "Battery", owner_person: "Kasun", storage_bin: "PASSIVES_BIN_2", quantity: 300 },
+            { id: "s8_3", department: "Chargenet", owner_person: "Nuwan", storage_bin: "PASSIVES_CRAY", quantity: 200 }
+          ]
+        }
+      ];
+
+      transactionsData = [
+        {
+          id: "tx1",
+          component_mpn: "TCAN3403DRBRQ1",
+          department: "Battery",
+          engineer_name: "Kasun",
+          action_type: "ADD",
+          qty_changed: 22,
+          project_note: "Restocked from Mouser Order #408821 for BMS bring-up",
+          created_at: new Date(Date.now() - 3600000 * 5).toISOString()
+        },
+        {
+          id: "tx2",
+          component_mpn: "CC2640R2FRGZT",
+          department: "Automotive",
+          engineer_name: "Chathura",
+          action_type: "TAKE",
+          qty_changed: -2,
+          project_note: "Used 2 pcs for testing ETX Telematics prototype",
+          created_at: new Date(Date.now() - 3600000 * 24).toISOString()
+        },
+        {
+          id: "tx3",
+          component_mpn: "STM32F103C8T6",
+          department: "Chargenet",
+          engineer_name: "Nuwan",
+          action_type: "BOM_UPLOAD",
+          qty_changed: 25,
+          project_note: "Imported LCSC BOM Order for AC Wallbox Rev 3",
+          created_at: new Date(Date.now() - 3600000 * 48).toISOString()
+        }
+      ];
+
+      saveLocalData();
+    }
+
+    function saveLocalData() {
+      if (!isConnectedToSupabase) {
+        localStorage.setItem("vega_inventory_v3", JSON.stringify(componentsData));
+        localStorage.setItem("vega_tx_v3", JSON.stringify(transactionsData));
+      }
+    }
+
+    // 5. UPDATE MEMBER LIST & SUGGESTIONS
+    function updateMemberDropdowns() {
+      const allMembers = new Set(KNOWN_MEMBERS);
+      componentsData.forEach(c => {
+        (c.stock_locations || []).forEach(loc => {
+          if (loc.owner_person) allMembers.add(loc.owner_person);
+        });
+      });
+
+      const memberFilter = document.getElementById("memberFilter");
+      const currentVal = memberFilter.value;
+      memberFilter.innerHTML = `<option value="ALL">👤 All Team Members</option>`;
+      Array.from(allMembers).sort().forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = `👤 ${m}`;
+        memberFilter.appendChild(opt);
+      });
+      memberFilter.value = currentVal;
+
+      const suggestions = document.getElementById("memberSuggestions");
+      suggestions.innerHTML = "";
+      Array.from(allMembers).sort().forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        suggestions.appendChild(opt);
+      });
+    }
+
+    // 6. DUPLICATE ANALYSIS & AVOID MONEY WASTE
+    function analyzeDuplicates() {
+      // Find components held by more than 1 department or more than 1 member
+      const duplicateList = [];
+      let totalDuplicatePieces = 0;
+
+      componentsData.forEach(c => {
+        const locs = c.stock_locations || [];
+        // Check if held in multiple departments OR multiple members
+        const depts = new Set(locs.map(l => l.department));
+        const owners = new Set(locs.map(l => l.owner_person));
+        if (locs.length > 1 && (depts.size > 1 || owners.size > 1)) {
+          const totalPieces = locs.reduce((sum, l) => sum + l.quantity, 0);
+          duplicateList.push({
+            mpn: c.mpn,
+            depts: Array.from(depts),
+            owners: Array.from(owners),
+            totalPieces,
+            locs
+          });
+          totalDuplicatePieces += totalPieces;
+        }
+      });
+
+      const banner = document.getElementById("duplicateAlertBanner");
+      const text = document.getElementById("duplicateAlertText");
+
+      if (duplicateList.length > 0) {
+        banner.classList.remove("hidden");
+        text.innerHTML = `<strong>Cost Optimization Alert:</strong> Detected <strong>${duplicateList.length} components</strong> currently duplicated across Automotive, Battery, and Chargenet (${totalDuplicatePieces.toLocaleString()} pcs pooled). Check before ordering!`;
+      } else {
+        banner.classList.add("hidden");
+      }
+    }
+
+    function toggleDuplicatesOnly() {
+      onlyShowDuplicates = !onlyShowDuplicates;
+      const btn = document.getElementById("toggleDuplicatesOnlyBtn");
+      if (onlyShowDuplicates) {
+        btn.classList.add("bg-amber-100", "text-amber-900", "border-amber-300");
+        btn.innerHTML = `<span>✓</span><span>Showing Duplicates Only</span>`;
+      } else {
+        btn.classList.remove("bg-amber-100", "text-amber-900", "border-amber-300");
+        btn.innerHTML = `<span>⚠️</span><span>Only Overlapping Parts</span>`;
+      }
+      renderInventory();
+    }
+
+    function filterDuplicatesOnly() {
+      onlyShowDuplicates = true;
+      const btn = document.getElementById("toggleDuplicatesOnlyBtn");
+      btn.classList.add("bg-amber-100", "text-amber-900", "border-amber-300");
+      btn.innerHTML = `<span>✓</span><span>Showing Duplicates Only</span>`;
+      switchTab("inventory");
+      renderInventory();
+    }
+
+    // 7. FILTER MANAGEMENT
+    function setDeptFilter(dept) {
+      currentDeptFilter = dept;
+      document.querySelectorAll(".dept-pill").forEach(p => {
+        p.classList.remove("bg-slate-900", "text-white");
+        p.classList.add("bg-slate-100", "text-slate-700");
+      });
+      const active = document.getElementById(`pill-dept-${dept}`);
+      if (active) {
+        active.classList.add("bg-slate-900", "text-white");
+        active.classList.remove("bg-slate-100", "text-slate-700");
+      }
+      renderInventory();
+    }
+
+    function filterByDeptDirect(dept) {
+      setDeptFilter(dept);
+      switchTab("inventory");
+    }
+
+    function clearSearch() {
+      document.getElementById("searchInput").value = "";
+      document.getElementById("clearSearchBtn").classList.add("hidden");
+      renderInventory();
+    }
+
+    function resetAllFilters() {
+      document.getElementById("searchInput").value = "";
+      document.getElementById("clearSearchBtn").classList.add("hidden");
+      document.getElementById("memberFilter").value = "ALL";
+      document.getElementById("catFilter").value = "ALL";
+      onlyShowDuplicates = false;
+      const btn = document.getElementById("toggleDuplicatesOnlyBtn");
+      btn.classList.remove("bg-amber-100", "text-amber-900", "border-amber-300");
+      btn.innerHTML = `<span>⚠️</span><span>Only Overlapping Parts</span>`;
+      setDeptFilter("ALL");
+    }
+
+    function setViewMode(mode) {
+      currentViewMode = mode;
+      const btnTable = document.getElementById("viewBtnTable");
+      const btnCards = document.getElementById("viewBtnCards");
+      const tableView = document.getElementById("inventoryTableView");
+      const cardsView = document.getElementById("inventoryCardsView");
+
+      if (mode === "table") {
+        btnTable.className = "px-2.5 py-1 rounded-md bg-white shadow-xs font-semibold text-slate-800 transition";
+        btnCards.className = "px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition";
+        tableView.classList.remove("hidden");
+        cardsView.classList.add("hidden");
+      } else {
+        btnCards.className = "px-2.5 py-1 rounded-md bg-white shadow-xs font-semibold text-slate-800 transition";
+        btnTable.className = "px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition";
+        cardsView.classList.remove("hidden");
+        tableView.classList.add("hidden");
+      }
+      renderInventory();
+    }
+
+    // 8. RENDER INVENTORY TABLE & CARDS
+    function renderInventory() {
+      const query = document.getElementById("searchInput").value.trim().toLowerCase();
+      const clearBtn = document.getElementById("clearSearchBtn");
+      if (query) clearBtn.classList.remove("hidden"); else clearBtn.classList.add("hidden");
+
+      const memberFilter = document.getElementById("memberFilter").value;
+      const catFilter = document.getElementById("catFilter").value;
+
+      // Update Department KPI Statistics
+      let autoTotal = 0, batTotal = 0, chgTotal = 0, grandTotal = 0;
+      const autoHolders = new Set(), batHolders = new Set(), chgHolders = new Set();
+
+      componentsData.forEach(comp => {
+        (comp.stock_locations || []).forEach(loc => {
+          grandTotal += loc.quantity;
+          if (loc.department === "Automotive") {
+            autoTotal += loc.quantity;
+            if (loc.owner_person) autoHolders.add(loc.owner_person);
+          }
+          if (loc.department === "Battery") {
+            batTotal += loc.quantity;
+            if (loc.owner_person) batHolders.add(loc.owner_person);
+          }
+          if (loc.department === "Chargenet") {
+            chgTotal += loc.quantity;
+            if (loc.owner_person) chgHolders.add(loc.owner_person);
+          }
+        });
+      });
+
+      document.getElementById("statTotalParts").textContent = componentsData.length;
+      document.getElementById("statTotalStockAll").textContent = `${grandTotal.toLocaleString()} pcs`;
+      document.getElementById("statAutoStock").textContent = autoTotal.toLocaleString();
+      document.getElementById("statBatteryStock").textContent = batTotal.toLocaleString();
+      document.getElementById("statChargenetStock").textContent = chgTotal.toLocaleString();
+
+      document.getElementById("statAutoHolders").textContent = `${autoHolders.size} member${autoHolders.size === 1 ? '' : 's'} holding`;
+      document.getElementById("statBatHolders").textContent = `${batHolders.size} member${batHolders.size === 1 ? '' : 's'} holding`;
+      document.getElementById("statChgHolders").textContent = `${chgHolders.size} member${chgHolders.size === 1 ? '' : 's'} holding`;
+
+      document.getElementById("pillCountAuto").textContent = autoTotal.toLocaleString();
+      document.getElementById("pillCountBat").textContent = batTotal.toLocaleString();
+      document.getElementById("pillCountChg").textContent = chgTotal.toLocaleString();
+      document.getElementById("badgeTabInventoryCount").textContent = componentsData.length;
+
+      // Filter logic
+      const filtered = componentsData.filter(c => {
+        const locs = c.stock_locations || [];
+        
+        // Overlap / duplicate check
+        if (onlyShowDuplicates) {
+          const depts = new Set(locs.map(l => l.department));
+          const owners = new Set(locs.map(l => l.owner_person));
+          if (locs.length <= 1 || (depts.size <= 1 && owners.size <= 1)) return false;
+        }
+
+        // Full text match
+        const matchesQuery = !query ||
+          c.mpn.toLowerCase().includes(query) ||
+          (c.lcsc_pn && c.lcsc_pn.toLowerCase().includes(query)) ||
+          (c.mouser_pn && c.mouser_pn.toLowerCase().includes(query)) ||
+          (c.package && c.package.toLowerCase().includes(query)) ||
+          (c.description && c.description.toLowerCase().includes(query)) ||
+          locs.some(s => 
+            (s.owner_person && s.owner_person.toLowerCase().includes(query)) ||
+            (s.storage_bin && s.storage_bin.toLowerCase().includes(query)) ||
+            (s.department && s.department.toLowerCase().includes(query))
+          );
+
+        // Category filter
+        const matchesCat = catFilter === "ALL" || c.category === catFilter;
+
+        // Department filter
+        const matchesDept = currentDeptFilter === "ALL" || locs.some(s => s.department === currentDeptFilter && s.quantity > 0);
+
+        // Member filter
+        const matchesMember = memberFilter === "ALL" || locs.some(s => s.owner_person && s.owner_person.toLowerCase() === memberFilter.toLowerCase() && s.quantity > 0);
+
+        return matchesQuery && matchesCat && matchesDept && matchesMember;
+      });
+
+      document.getElementById("filteredCount").textContent = filtered.length;
+      document.getElementById("totalCatalogCount").textContent = componentsData.length;
+
+      // Render Active Filter Indicator Tags
+      const activeTagsContainer = document.getElementById("activeFilterTags");
+      const activeBar = document.getElementById("activeFilterPillBar");
+      activeTagsContainer.innerHTML = "";
+      let hasActiveFilter = false;
+
+      if (currentDeptFilter !== "ALL") {
+        hasActiveFilter = true;
+        activeTagsContainer.innerHTML += `<span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">Dept: ${currentDeptFilter} <button onclick="setDeptFilter('ALL')">&times;</button></span>`;
+      }
+      if (memberFilter !== "ALL") {
+        hasActiveFilter = true;
+        activeTagsContainer.innerHTML += `<span class="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">Member: ${memberFilter} <button onclick="document.getElementById('memberFilter').value='ALL'; renderInventory();">&times;</button></span>`;
+      }
+      if (catFilter !== "ALL") {
+        hasActiveFilter = true;
+        activeTagsContainer.innerHTML += `<span class="bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">Category: ${catFilter} <button onclick="document.getElementById('catFilter').value='ALL'; renderInventory();">&times;</button></span>`;
+      }
+      if (onlyShowDuplicates) {
+        hasActiveFilter = true;
+        activeTagsContainer.innerHTML += `<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">Overlapping Parts Only <button onclick="toggleDuplicatesOnly()">&times;</button></span>`;
+      }
+
+      if (hasActiveFilter) activeBar.classList.remove("hidden"); else activeBar.classList.add("hidden");
+
+      // RENDER TABLE VIEW
+      const tbody = document.getElementById("inventoryTableBody");
+      tbody.innerHTML = "";
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="text-center py-12 text-slate-400">
+              <span class="text-3xl block mb-2">🔍</span>
+              <p class="font-medium text-slate-600">No components matched your search filters.</p>
+              <button onclick="resetAllFilters()" class="mt-2 text-xs text-blue-600 hover:underline">Reset all filters</button>
+            </td>
+          </tr>
+        `;
+      } else {
+        filtered.forEach(c => {
+          const locs = c.stock_locations || [];
+          const totalQty = locs.reduce((sum, s) => sum + s.quantity, 0);
+
+          // Department badges
+          const badgesHtml = locs.map(s => {
+            const deptClass = `dept-badge-${s.department}`;
+            const deptIcon = s.department === "Automotive" ? "🚗" : s.department === "Battery" ? "🔋" : s.department === "Chargenet" ? "⚡" : "🏢";
+            return `
+              <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium mr-2 mb-1.5 ${deptClass} shadow-2xs">
+                <span>${deptIcon} <strong>${s.department}:</strong> ${s.quantity} pcs</span>
+                <span class="text-slate-500 font-normal">(${s.storage_bin} • 👤 <strong>${s.owner_person}</strong>)</span>
+                <div class="flex items-center gap-1 ml-1.5 border-l border-slate-300 pl-1.5">
+                  <button onclick="openTakeModal('${s.id}', '${c.mpn}', '${s.department}', ${s.quantity}, '${s.storage_bin}', '${s.owner_person}')"
+                    title="Borrow or use pieces"
+                    class="bg-white hover:bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-300 text-[10px] font-bold">
+                    Borrow
+                  </button>
+                  <button onclick="openTransferModal('${s.id}', '${c.mpn}', '${s.department}', ${s.quantity}, '${s.storage_bin}', '${s.owner_person}')"
+                    title="Transfer to another department or member"
+                    class="bg-white hover:bg-slate-100 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200 text-[10px] font-bold">
+                    Transfer
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join("");
+
+          const lcscUrl = c.lcsc_pn ? `https://www.lcsc.com/search?q=${encodeURIComponent(c.lcsc_pn)}` : null;
+          const mouserUrl = c.mouser_pn ? `https://www.mouser.com/c/?q=${encodeURIComponent(c.mouser_pn)}` : null;
+          const isOverlapping = locs.length > 1;
+
+          tbody.innerHTML += `
+            <tr class="hover:bg-slate-50/80 transition group">
+              <!-- MPN & Links -->
+              <td class="py-3 px-4">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-bold font-mono text-slate-900 text-sm group-hover:text-blue-600 transition">${c.mpn}</span>
+                  ${isOverlapping ? `<span title="Stock exists across multiple departments/drawers" class="text-amber-500 text-xs cursor-help">⚠️</span>` : ''}
+                </div>
+                <div class="flex flex-wrap gap-2 mt-1 text-[11px]">
+                  ${c.lcsc_pn ? `<a href="${lcscUrl}" target="_blank" class="text-blue-600 hover:underline font-mono inline-flex items-center gap-0.5">LCSC: ${c.lcsc_pn} ↗</a>` : ""}
+                  ${c.mouser_pn ? `<a href="${mouserUrl}" target="_blank" class="text-orange-600 hover:underline font-mono inline-flex items-center gap-0.5">Mouser: ${c.mouser_pn} ↗</a>` : ""}
+                  ${!c.lcsc_pn && !c.mouser_pn ? `<span class="text-slate-400">Custom / General</span>` : ""}
+                </div>
+              </td>
+
+              <!-- Category & Package -->
+              <td class="py-3 px-4 whitespace-nowrap">
+                <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-medium">${c.category}</span>
+                <div class="text-[11px] text-slate-500 font-mono mt-1">${c.package || "—"}</div>
+              </td>
+
+              <!-- Specs -->
+              <td class="py-3 px-4 max-w-xs text-xs text-slate-600 leading-snug">
+                ${c.description}
+              </td>
+
+              <!-- Department Stock Locations -->
+              <td class="py-3 px-4">
+                ${badgesHtml || '<span class="text-xs text-red-500 font-medium">Out of stock across company</span>'}
+              </td>
+
+              <!-- Total Qty -->
+              <td class="py-3 px-4 text-right">
+                <div class="font-extrabold text-base ${totalQty > 0 ? 'text-emerald-700' : 'text-red-500'} font-mono">
+                  ${totalQty.toLocaleString()}
+                </div>
+                <div class="text-[10px] text-slate-400 font-sans">total pcs</div>
+              </td>
+
+              <!-- Actions -->
+              <td class="py-3 px-4 text-center whitespace-nowrap">
+                <button onclick="prefillRestock('${c.mpn}', '${c.category}', '${c.lcsc_pn || ''}', '${c.mouser_pn || ''}', '${c.package || ''}', '${(c.description || '').replace(/'/g, "\\'")}')"
+                  class="text-xs text-blue-600 hover:text-blue-800 font-semibold border border-blue-200 bg-blue-50/60 hover:bg-blue-100/70 px-2.5 py-1 rounded-lg transition shadow-2xs">
+                  + Add Stock
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+      }
+
+      // RENDER CARDS VIEW
+      const cardsContainer = document.getElementById("inventoryCardsView");
+      cardsContainer.innerHTML = "";
+      if (filtered.length > 0) {
+        filtered.forEach(c => {
+          const locs = c.stock_locations || [];
+          const totalQty = locs.reduce((sum, s) => sum + s.quantity, 0);
+
+          cardsContainer.innerHTML += `
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3 hover:shadow-md transition">
+              <div class="flex justify-between items-start">
+                <div>
+                  <span class="text-xs font-mono font-bold text-slate-900 block">${c.mpn}</span>
+                  <span class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">${c.category}</span>
+                </div>
+                <div class="text-right">
+                  <span class="text-lg font-bold font-mono ${totalQty > 0 ? 'text-emerald-700' : 'text-red-500'}">${totalQty.toLocaleString()}</span>
+                  <span class="text-[10px] text-slate-400 block">total pcs</span>
+                </div>
+              </div>
+
+              <p class="text-xs text-slate-600 line-clamp-2">${c.description}</p>
+
+              <div class="border-t border-slate-100 pt-2 space-y-1">
+                <span class="text-[10px] uppercase font-bold text-slate-400 block">Locations & Owners:</span>
+                ${locs.map(s => `
+                  <div class="flex justify-between items-center text-xs p-1.5 rounded-lg dept-badge-${s.department}">
+                    <div>
+                      <strong>${s.department}</strong>: ${s.quantity} pcs
+                      <div class="text-[10px] opacity-80">${s.storage_bin} • 👤 ${s.owner_person}</div>
+                    </div>
+                    <button onclick="openTakeModal('${s.id}', '${c.mpn}', '${s.department}', ${s.quantity}, '${s.storage_bin}', '${s.owner_person}')"
+                      class="bg-white hover:bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold border">
+                      Borrow
+                    </button>
+                  </div>
+                `).join("") || '<p class="text-xs text-red-500">No stock available</p>'}
+              </div>
+
+              <div class="flex justify-between items-center pt-2 border-t border-slate-100 text-xs">
+                <div class="flex gap-2">
+                  ${c.lcsc_pn ? `<a href="https://www.lcsc.com/search?q=${c.lcsc_pn}" target="_blank" class="text-blue-600 hover:underline font-mono">LCSC ↗</a>` : ''}
+                  ${c.mouser_pn ? `<a href="https://www.mouser.com/c/?q=${c.mouser_pn}" target="_blank" class="text-orange-600 hover:underline font-mono">Mouser ↗</a>` : ''}
+                </div>
+                <button onclick="prefillRestock('${c.mpn}', '${c.category}', '${c.lcsc_pn || ''}', '${c.mouser_pn || ''}', '${c.package || ''}', '${(c.description || '').replace(/'/g, "\\'")}')"
+                  class="text-blue-600 hover:underline font-medium">
+                  + Add Stock
+                </button>
+              </div>
+            </div>
+          `;
+        });
+      }
+    }
+
+    // 9. MEMBER DIRECTORY VIEW ("Who has what?")
+    function renderMemberDirectory() {
+      const container = document.getElementById("membersDirectoryContainer");
+      const search = (document.getElementById("memberSearchInput")?.value || "").trim().toLowerCase();
+      
+      // Group all stock by member
+      const memberMap = {};
+
+      componentsData.forEach(c => {
+        (c.stock_locations || []).forEach(loc => {
+          const member = loc.owner_person || "Unknown";
+          if (!memberMap[member]) {
+            memberMap[member] = {
+              name: member,
+              departments: new Set(),
+              items: [],
+              totalQty: 0
+            };
+          }
+          memberMap[member].departments.add(loc.department);
+          memberMap[member].totalQty += loc.quantity;
+          memberMap[member].items.push({
+            mpn: c.mpn,
+            category: c.category,
+            quantity: loc.quantity,
+            department: loc.department,
+            storage_bin: loc.storage_bin,
+            description: c.description
+          });
+        });
+      });
+
+      const members = Object.values(memberMap).sort((a, b) => b.totalQty - a.totalQty);
+      const filtered = members.filter(m => {
+        if (!search) return true;
+        return m.name.toLowerCase().includes(search) || 
+               Array.from(m.departments).some(d => d.toLowerCase().includes(search)) ||
+               m.items.some(i => i.mpn.toLowerCase().includes(search) || i.storage_bin.toLowerCase().includes(search));
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="col-span-3 text-center py-8 text-slate-400">No member profiles found.</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(m => {
+        const deptBadges = Array.from(m.departments).map(d => {
+          const color = d === "Automotive" ? "bg-blue-100 text-blue-800" : d === "Battery" ? "bg-emerald-100 text-emerald-800" : "bg-orange-100 text-orange-800";
+          return `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${color}">${d}</span>`;
+        }).join(" ");
+
+        return `
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 hover:border-slate-300 transition">
+            <div class="flex justify-between items-start border-b border-slate-200 pb-2.5">
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="w-6 h-6 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs">👤</span>
+                  <h4 class="font-bold text-slate-900 text-sm">${m.name}</h4>
+                </div>
+                <div class="flex gap-1 mt-1.5">${deptBadges}</div>
+              </div>
+              <div class="text-right">
+                <span class="font-mono font-bold text-base text-slate-800">${m.totalQty.toLocaleString()}</span>
+                <span class="text-[10px] text-slate-400 block">${m.items.length} unique items</span>
+              </div>
+            </div>
+
+            <!-- List of parts held -->
+            <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+              ${m.items.map(i => `
+                <div class="bg-white p-2 rounded-lg border border-slate-200 flex justify-between items-center text-xs">
+                  <div>
+                    <span class="font-mono font-bold text-slate-800">${i.mpn}</span>
+                    <div class="text-[10px] text-slate-500 font-mono">📍 ${i.storage_bin}</div>
+                  </div>
+                  <span class="font-mono font-bold text-emerald-700">${i.quantity} pcs</span>
+                </div>
+              `).join("")}
+            </div>
+
+            <button onclick="filterByMember('${m.name}')" class="w-full text-center text-xs text-blue-600 hover:text-blue-800 font-semibold py-1.5 border border-blue-200 rounded-lg bg-blue-50/50 hover:bg-blue-50 transition">
+              View ${m.name}'s Parts in Catalog
+            </button>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function filterByMember(memberName) {
+      document.getElementById("memberFilter").value = memberName;
+      switchTab("inventory");
+      renderInventory();
+    }
+
+    // 10. PRE-ORDER DUPLICATE CHECKER LOGIC (STOP WASTING MONEY!)
+    function runBomCheck() {
+      const raw = document.getElementById("bomInput").value;
+      const tokens = raw.split(/[\n,;\t]+/)
+        .map(t => t.trim().toUpperCase())
+        .filter(t => t.length > 1 && !t.startsWith("#"));
+
+      const container = document.getElementById("bomResults");
+      const summaryBadge = document.getElementById("checkerSummaryBadge");
+
+      if (!tokens.length) {
+        showToast("Please enter at least one component MPN or part number to check", "warning");
+        return;
+      }
+
+      let inStockCount = 0;
+      let outOfStockCount = 0;
+      let totalPiecesAvailable = 0;
+
+      const html = tokens.map(token => {
+        // Search in master components
+        const match = componentsData.find(c =>
+          c.mpn.toUpperCase() === token ||
+          (c.lcsc_pn && c.lcsc_pn.toUpperCase() === token) ||
+          (c.mouser_pn && c.mouser_pn.toUpperCase() === token) ||
+          (c.mpn.toUpperCase().includes(token) && token.length > 5)
+        );
+
+        if (match) {
+          const locs = match.stock_locations || [];
+          const totalQty = locs.reduce((sum, l) => sum + l.quantity, 0);
+
+          if (totalQty > 0) {
+            inStockCount++;
+            totalPiecesAvailable += totalQty;
+
+            const breakdown = locs.map(s => `
+              <span class="inline-flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-emerald-300 text-[11px] font-medium mr-1.5 mt-1">
+                <strong>${s.department}:</strong> ${s.quantity} pcs (👤 <strong>${s.owner_person}</strong> • 📍 ${s.storage_bin})
+              </span>
+            `).join("");
+
+            return `
+              <div class="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl space-y-2">
+                <div class="flex flex-wrap justify-between items-start gap-2">
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="font-mono font-bold text-slate-900 text-sm">${match.mpn}</span>
+                      <span class="bg-emerald-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        ✓ In Company Stock
+                      </span>
+                      ${token !== match.mpn ? `<span class="text-xs text-slate-500 font-mono">(Matched via ${token})</span>` : ''}
+                    </div>
+                    <p class="text-xs text-slate-600 mt-0.5">${match.description}</p>
+                  </div>
+                  <div class="text-right">
+                    <span class="text-base font-extrabold font-mono text-emerald-800">${totalQty} pcs</span>
+                    <span class="text-[10px] text-slate-500 block">ready to borrow</span>
+                  </div>
+                </div>
+
+                <div class="text-xs text-emerald-900 pt-1">
+                  <strong>Where to find:</strong> ${breakdown}
+                </div>
+
+                <div class="pt-2 border-t border-emerald-200/60 flex justify-between items-center">
+                  <span class="text-[11px] text-emerald-800 font-semibold">💡 Action: Avoid purchasing! Borrow from ${locs.map(l => l.owner_person).join(", ")}.</span>
+                  <button onclick="copyBorrowMsg('${match.mpn}', '${locs[0]?.owner_person || ''}', '${locs[0]?.department || ''}')"
+                    class="text-xs bg-emerald-700 hover:bg-emerald-600 text-white font-semibold px-2.5 py-1 rounded-lg transition shadow-xs flex items-center gap-1">
+                    <span>📋</span>
+                    <span>Copy Request Message</span>
+                  </button>
+                </div>
+              </div>
+            `;
+          }
+        }
+
+        outOfStockCount++;
+        return `
+          <div class="p-3 bg-white border border-slate-200 rounded-xl flex justify-between items-center text-xs">
+            <div>
+              <span class="font-mono font-bold text-slate-700 text-sm">${token}</span>
+              <div class="text-slate-500 mt-0.5">Not currently held by Automotive, Battery, or Chargenet</div>
+            </div>
+            <span class="bg-amber-100 text-amber-800 text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-amber-200">
+              Needs Order on LCSC / Mouser
+            </span>
+          </div>
+        `;
+      }).join("");
+
+      container.innerHTML = html;
+      summaryBadge.innerHTML = `
+        <span class="font-bold text-emerald-700">${inStockCount} found in company</span> • 
+        <span class="font-medium text-amber-700">${outOfStockCount} need order</span>
+      `;
+
+      if (inStockCount > 0) {
+        showToast(`Found ${inStockCount} components already available in company stock!`, "success");
+      } else {
+        showToast("None of these components are currently in stock. Safe to order.", "info");
+      }
+    }
+
+    function copyBorrowMsg(mpn, owner, dept) {
+      const msg = `Hi ${owner}, I saw in the VEGA Inventory that you have ${mpn} in ${dept}. Could I borrow a few pieces for my PCB prototype? Thanks!`;
+      navigator.clipboard.writeText(msg).then(() => {
+        showToast(`Copied request message for ${owner} to clipboard!`, "success");
+      }).catch(() => {
+        prompt("Copy message:", msg);
+      });
+    }
+
+    function loadSampleCheckerList() {
+      document.getElementById("bomInput").value = "STM32F103C8T6\nCC2640R2FRGZT\nBQ25620RYKR\nC32921356\nMAX3232CSE\nNE555P";
+      runBomCheck();
+    }
+
+    function handleCheckerFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: "array" });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+        
+        const extractedTokens = [];
+        rows.forEach(r => {
+          r.forEach(cell => {
+            const val = String(cell || "").trim();
+            if (/^[A-Z0-9_\-\.]{5,}$/i.test(val) && !val.includes("HTTP") && !val.includes("WWW")) {
+              extractedTokens.push(val);
+            }
+          });
+        });
+
+        const unique = Array.from(new Set(extractedTokens)).slice(0, 30);
+        document.getElementById("bomInput").value = unique.join("\n");
+        showToast(`Extracted ${unique.length} potential part numbers from file`, "info");
+        runBomCheck();
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // 11. PARSE LCSC AND MOUSER BOM FILES
     function previewBomFile(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -389,30 +1845,26 @@
       const useOrderQty = document.getElementById("useOrderQtyCheckbox").checked;
 
       parsedBomItems = [];
-      let detectedType = "Unknown";
+      let detectedType = "Unknown BOM Format";
 
-      // Check if it's an LCSC BOM Quotation (Header at row index 3 where row[3][0] == 'LCSC#')
-      const lcscHeaderRowIndex = rows.findIndex(r => String(r[0]).trim() === "LCSC#" && r.includes("LCSC Matching Results") === false);
+      // 1. Detect LCSC Quotation
+      const lcscHeaderRowIndex = rows.findIndex(r => String(r[0]).trim() === "LCSC#" && !r.includes("LCSC Matching Results"));
 
-      // Check if it's a Mouser BOM (Row 0 has 'Mouser Part Number' or 'Mfr Part Number')
-      const mouserHeaderRowIndex = rows.findIndex(r => r.some(cell => String(cell).includes("Mouser Part Number")));
+      // 2. Detect Mouser BOM
+      const mouserHeaderRowIndex = rows.findIndex(r => r.some(cell => String(cell).includes("Mouser Part Number") || String(cell).includes("Mfr Part Number")));
 
-      if (lcscHeaderRowIndex !== -1 && rows[lcscHeaderRowIndex].length >= 20) {
-        detectedType = "LCSC BOM Export";
+      if (lcscHeaderRowIndex !== -1 && rows[lcscHeaderRowIndex].length >= 10) {
+        detectedType = "LCSC BOM Quotation";
         for (let i = lcscHeaderRowIndex + 1; i < rows.length; i++) {
           const r = rows[i];
           if (!r || r.length === 0) continue;
 
-          // LCSC Columns:
-          // Col 0: Uploaded LCSC#, Col 2: Uploaded Mrf#, Col 3: Uploaded Desc, Col 4: Uploaded Pkg, Col 6: Customer Part Number, Col 7: Uploaded Qty
-          // Col 10: Matched Mrf#, Col 12: Order Qty., Col 15: Matched LCSC#, Col 16: Matched Package, Col 23: Matched Description
           const matchedMpn = String(r[10] || "").trim();
           const isDeleted = !matchedMpn || matchedMpn.startsWith("-");
 
           const lcscPn = String((!isDeleted ? r[15] : r[0]) || r[0] || "").trim().toUpperCase();
           let mpn = (!isDeleted ? matchedMpn : String(r[2] || r[3] || lcscPn).trim()).toUpperCase();
 
-          // Skip totally empty rows
           if (!mpn || mpn.startsWith("-")) continue;
 
           const pkg = String((!isDeleted && r[16] ? r[16] : r[4]) || "").trim();
@@ -439,13 +1891,13 @@
       } else if (mouserHeaderRowIndex !== -1) {
         detectedType = "Mouser BOM Export";
         const headers = rows[mouserHeaderRowIndex].map(h => String(h).trim());
-        const idxMpn = headers.indexOf("Mfr Part Number");
+        const idxMpn = headers.indexOf("Mfr Part Number") !== -1 ? headers.indexOf("Mfr Part Number") : headers.indexOf("Manufacturer Part Number");
         const idxMouser = headers.indexOf("Mouser Part Number") !== -1 ? headers.indexOf("Mouser Part Number") : headers.indexOf("Mouser Part Number (Input)");
         const idxDesc = headers.indexOf("Description");
         const idxCustPart = headers.indexOf("Customer Part #");
         const idxOrderQty = headers.indexOf("Order Quantity");
         const idxQty1 = headers.indexOf("Quantity 1");
-        const idxPkg = headers.indexOf("Package Type");
+        const idxPkg = headers.indexOf("Package Type") !== -1 ? headers.indexOf("Package Type") : headers.indexOf("Package / Case");
 
         for (let i = mouserHeaderRowIndex + 1; i < rows.length; i++) {
           const r = rows[i];
@@ -473,9 +1925,27 @@
             quantity: rawQty
           });
         }
+      } else {
+        // Generic fallback: Try to find any row containing Part Number
+        for (let i = 1; i < rows.length; i++) {
+          const r = rows[i];
+          const mpn = String(r[0] || r[1] || "").trim().toUpperCase();
+          if (mpn.length > 2) {
+            parsedBomItems.push({
+              mpn,
+              lcsc_pn: "",
+              mouser_pn: "",
+              category: autoCategorize(mpn, String(r[2] || "")),
+              package: String(r[3] || ""),
+              description: String(r[2] || mpn),
+              project_bin: "GENERIC-BOM",
+              quantity: parseInt(r[4] || 1, 10) || 1
+            });
+          }
+        }
+        detectedType = "Generic Spreadsheet";
       }
 
-      // Render Preview Table
       const container = document.getElementById("bomPreviewContainer");
       const tbody = document.getElementById("bomPreviewBody");
       const btn = document.getElementById("confirmBomUploadBtn");
@@ -499,20 +1969,18 @@
       } else {
         container.classList.add("hidden");
         btn.disabled = true;
-        alert("Could not detect valid LCSC or Mouser BOM rows in this file.");
+        showToast("Could not detect valid component rows in this file.", "error");
       }
     }
 
-    // ============================================================================
-    // 4. COMMIT PARSED BOM ITEMS TO DATABASE (SUPABASE OR LOCAL)
-    // ============================================================================
+    // 12. COMMIT BOM TO DATABASE
     async function commitBomToDatabase() {
       const department = document.getElementById("bom_dept").value;
       const owner_person = document.getElementById("bom_owner").value.trim();
       const customBin = document.getElementById("bom_bin").value.trim();
 
       if (!owner_person) {
-        alert("Please enter or select the Component Owner / Member name before importing.");
+        showToast("Please enter or select the Component Owner / Member name", "warning");
         document.getElementById("bom_owner").focus();
         return;
       }
@@ -525,55 +1993,56 @@
       for (const item of parsedBomItems) {
         const binToUse = customBin || item.project_bin;
 
-        if (isLiveSupabase) {
-          // 1. Upsert or find Master Component
-          let { data: existingComp } = await supabaseClient.from("components").select("*").eq("mpn", item.mpn).maybeSingle();
-          if (!existingComp) {
-            const { data: created } = await supabaseClient.from("components").insert({
-              mpn: item.mpn,
-              lcsc_pn: item.lcsc_pn || null,
-              mouser_pn: item.mouser_pn || null,
-              category: item.category,
-              package: item.package,
-              description: item.description
-            }).select().single();
-            existingComp = created;
-          } else {
-            // Fill missing supplier numbers if needed
-            const updates = {};
-            if (!existingComp.lcsc_pn && item.lcsc_pn) updates.lcsc_pn = item.lcsc_pn;
-            if (!existingComp.mouser_pn && item.mouser_pn) updates.mouser_pn = item.mouser_pn;
-            if (Object.keys(updates).length > 0) {
-              await supabaseClient.from("components").update(updates).eq("id", existingComp.id);
-            }
-          }
-
-          if (existingComp) {
-            // 2. Check if this Owner + Department + Bin already holds this component
-            let { data: existingLoc } = await supabaseClient.from("stock_locations")
-              .select("*")
-              .eq("component_id", existingComp.id)
-              .eq("department", department)
-              .eq("owner_person", owner_person)
-              .eq("storage_bin", binToUse)
-              .maybeSingle();
-
-            if (existingLoc) {
-              await supabaseClient.from("stock_locations")
-                .update({ quantity: existingLoc.quantity + item.quantity })
-                .eq("id", existingLoc.id);
+        if (isConnectedToSupabase) {
+          try {
+            let { data: existingComp } = await supabaseClient.from("components").select("*").eq("mpn", item.mpn).maybeSingle();
+            if (!existingComp) {
+              const { data: created } = await supabaseClient.from("components").insert({
+                mpn: item.mpn,
+                lcsc_pn: item.lcsc_pn || null,
+                mouser_pn: item.mouser_pn || null,
+                category: item.category,
+                package: item.package,
+                description: item.description
+              }).select().single();
+              existingComp = created;
             } else {
-              await supabaseClient.from("stock_locations").insert({
-                component_id: existingComp.id,
-                department,
-                owner_person,
-                storage_bin: binToUse,
-                quantity: item.quantity
-              });
+              const updates = {};
+              if (!existingComp.lcsc_pn && item.lcsc_pn) updates.lcsc_pn = item.lcsc_pn;
+              if (!existingComp.mouser_pn && item.mouser_pn) updates.mouser_pn = item.mouser_pn;
+              if (Object.keys(updates).length > 0) {
+                await supabaseClient.from("components").update(updates).eq("id", existingComp.id);
+              }
             }
+
+            if (existingComp) {
+              let { data: existingLoc } = await supabaseClient.from("stock_locations")
+                .select("*")
+                .eq("component_id", existingComp.id)
+                .eq("department", department)
+                .eq("owner_person", owner_person)
+                .eq("storage_bin", binToUse)
+                .maybeSingle();
+
+              if (existingLoc) {
+                await supabaseClient.from("stock_locations")
+                  .update({ quantity: existingLoc.quantity + item.quantity })
+                  .eq("id", existingLoc.id);
+              } else {
+                await supabaseClient.from("stock_locations").insert({
+                  component_id: existingComp.id,
+                  department,
+                  owner_person,
+                  storage_bin: binToUse,
+                  quantity: item.quantity
+                });
+              }
+            }
+          } catch (e) {
+            console.error("Error inserting part", e);
           }
         } else {
-          // Local Demo Mode
+          // Local storage fallback
           let comp = componentsData.find(c => c.mpn.toUpperCase() === item.mpn.toUpperCase());
           if (!comp) {
             comp = {
@@ -586,7 +2055,7 @@
               description: item.description,
               stock_locations: []
             };
-            componentsData.push(comp);
+            componentsData.unshift(comp);
           } else {
             if (!comp.lcsc_pn && item.lcsc_pn) comp.lcsc_pn = item.lcsc_pn;
             if (!comp.mouser_pn && item.mouser_pn) comp.mouser_pn = item.mouser_pn;
@@ -597,6 +2066,7 @@
                  s.owner_person.toLowerCase() === owner_person.toLowerCase() &&
                  s.storage_bin.toLowerCase() === binToUse.toLowerCase()
           );
+
           if (loc) {
             loc.quantity += item.quantity;
           } else {
@@ -611,209 +2081,46 @@
         }
       }
 
-      // Log bulk transaction summary
-      const summaryNote = `Imported ${parsedBomItems.length} BOM lines (${customBin || parsedBomItems[0]?.project_bin || 'BOM'})`;
-      if (isLiveSupabase) {
+      // Log Transaction
+      const summaryNote = `Imported ${parsedBomItems.length} lines (${customBin || parsedBomItems[0]?.project_bin || 'BOM'})`;
+      const totalPcs = parsedBomItems.reduce((acc, i) => acc + i.quantity, 0);
+
+      if (isConnectedToSupabase) {
         await supabaseClient.from("transactions").insert({
           component_mpn: `BOM (${parsedBomItems.length} parts)`,
           department,
           engineer_name: owner_person,
           action_type: "BOM_UPLOAD",
-          qty_changed: parsedBomItems.reduce((acc, i) => acc + i.quantity, 0),
+          qty_changed: totalPcs,
           project_note: summaryNote
         });
         await loadInventory();
       } else {
         transactionsData.unshift({
+          id: "tx_" + Date.now(),
           component_mpn: `BOM (${parsedBomItems.length} parts)`,
           department,
           engineer_name: owner_person,
           action_type: "BOM_UPLOAD",
-          qty_changed: parsedBomItems.reduce((acc, i) => acc + i.quantity, 0),
+          qty_changed: totalPcs,
           project_note: summaryNote,
           created_at: new Date().toISOString()
         });
-        saveLocalFallback();
+        saveLocalData();
+        updateMemberDropdowns();
         renderInventory();
         renderTransactions();
+        renderMemberDirectory();
+        analyzeDuplicates();
       }
 
-      status.textContent = "Import complete!";
+      showToast(`Successfully imported ${parsedBomItems.length} parts (${totalPcs} pcs) for ${owner_person}!`, "success");
       document.getElementById("bomFileInput").value = "";
       document.getElementById("bomPreviewContainer").classList.add("hidden");
       closeModal("uploadBomModal");
     }
 
-    // ============================================================================
-    // 5. INITIAL SAMPLE DATA & RENDERING
-    // ============================================================================
-    async function loadInventory() {
-      const badge = document.getElementById("dbStatusBadge");
-      if (isLiveSupabase) {
-        badge.textContent = "Mode: Live Supabase Cloud";
-        badge.className = "text-xs px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40";
-        const { data: comps } = await supabaseClient.from("components").select("*, stock_locations(*)").order("mpn");
-        const { data: txs } = await supabaseClient.from("transactions").select("*").order("created_at", { ascending: false }).limit(25);
-        if (comps) componentsData = comps;
-        if (txs) transactionsData = txs;
-      } else {
-        const saved = localStorage.getItem("pcb_demo_inventory_v2");
-        const savedTx = localStorage.getItem("pcb_demo_tx_v2");
-        if (saved) {
-          componentsData = JSON.parse(saved);
-          transactionsData = savedTx ? JSON.parse(savedTx) : [];
-        } else {
-          // Pre-seeded with real rows from your uploaded LCSC & Mouser BOMs
-          componentsData = [
-            {
-              id: "c1", mpn: "CC2640R2FRGZT", lcsc_pn: "C132315", mouser_pn: "595-CC2640R2FRGZT",
-              category: "MCU / RF", package: "RGZ-48", description: "RF Microcontrollers - MCU SimpleLink Bluetooth low energy Wireless MCU",
-              stock_locations: [{ id: "s1", department: "Automotive", owner_person: "Sudeepa", storage_bin: "ETX_DBOM_6_22_26", quantity: 5 }]
-            },
-            {
-              id: "c2", mpn: "CC2745R10E0WRHARQ1", lcsc_pn: "", mouser_pn: "595-CC2745R10E0WRRQ1",
-              category: "MCU / RF", package: "VQFN-40", description: "Texas Instruments Automotive SimpleLink Bluetooth 6.0 LE",
-              stock_locations: [{ id: "s2", department: "Automotive", owner_person: "Sudeepa", storage_bin: "ETX_DBOM_6_22_26", quantity: 5 }]
-            },
-            {
-              id: "c3", mpn: "L99DZ200GTR", lcsc_pn: "", mouser_pn: "511-L99DZ200GTR",
-              category: "Power / MOSFET", package: "LQFP-64", description: "Automotive Front Door device with LIN and HS-CAN providing Dual H-bridge driving",
-              stock_locations: [{ id: "s3", department: "Automotive", owner_person: "Sudeepa", storage_bin: "ETX_DBOM_6_22_26", quantity: 5 }]
-            },
-            {
-              id: "c4", mpn: "TCAN3403DRBRQ1", lcsc_pn: "C32921356", mouser_pn: "",
-              category: "Interface / CAN", package: "SON-8-EP(3x3)", description: "3.3V CAN FD Transceiver 8Mbps SON-8-EP(3x3)",
-              stock_locations: [{ id: "s4", department: "Automotive", owner_person: "Sudeepa", storage_bin: "ETX_OBD_II", quantity: 5 }]
-            },
-            {
-              id: "c5", mpn: "STM32F103C8T6", lcsc_pn: "C8734", mouser_pn: "",
-              category: "MCU / RF", package: "LQFP-48(7x7)", description: "ARM Cortex-M3 32 Bit 72MHz LQFP-48(7x7) Microcontrollers RoHS",
-              stock_locations: [{ id: "s5", department: "Automotive", owner_person: "Sudeepa", storage_bin: "ETX_OBD_II", quantity: 5 }]
-            }
-          ];
-        }
-      }
-      renderInventory();
-      renderTransactions();
-    }
-
-    function saveLocalFallback() {
-      if (!isLiveSupabase) {
-        localStorage.setItem("pcb_demo_inventory_v2", JSON.stringify(componentsData));
-        localStorage.setItem("pcb_demo_tx_v2", JSON.stringify(transactionsData));
-      }
-    }
-
-    function renderInventory() {
-      const query = document.getElementById("searchInput").value.trim().toLowerCase();
-      const deptFilter = document.getElementById("deptFilter").value;
-      const catFilter = document.getElementById("catFilter").value;
-      const tbody = document.getElementById("inventoryTableBody");
-      tbody.innerHTML = "";
-
-      let autoTotal = 0, batTotal = 0, chgTotal = 0;
-
-      componentsData.forEach(comp => {
-        (comp.stock_locations || []).forEach(loc => {
-          if (loc.department === "Automotive") autoTotal += loc.quantity;
-          if (loc.department === "Battery") batTotal += loc.quantity;
-          if (loc.department === "Chargenet") chgTotal += loc.quantity;
-        });
-      });
-
-      document.getElementById("statTotalParts").textContent = componentsData.length;
-      document.getElementById("statAutoStock").textContent = autoTotal.toLocaleString() + " pcs";
-      document.getElementById("statBatteryStock").textContent = batTotal.toLocaleString() + " pcs";
-      document.getElementById("statChargenetStock").textContent = chgTotal.toLocaleString() + " pcs";
-
-      const filtered = componentsData.filter(c => {
-        const locs = c.stock_locations || [];
-        const matchesQuery = !query ||
-          c.mpn.toLowerCase().includes(query) ||
-          (c.lcsc_pn && c.lcsc_pn.toLowerCase().includes(query)) ||
-          (c.mouser_pn && c.mouser_pn.toLowerCase().includes(query)) ||
-          (c.package && c.package.toLowerCase().includes(query)) ||
-          (c.description && c.description.toLowerCase().includes(query)) ||
-          locs.some(s => (s.owner_person && s.owner_person.toLowerCase().includes(query)) || (s.storage_bin && s.storage_bin.toLowerCase().includes(query)));
-
-        const matchesCat = catFilter === "ALL" || c.category === catFilter;
-        const matchesDept = deptFilter === "ALL" || locs.some(s => s.department === deptFilter && s.quantity > 0);
-        return matchesQuery && matchesCat && matchesDept;
-      });
-
-      if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">No matching components found.</td></tr>`;
-        return;
-      }
-
-      filtered.forEach(c => {
-        const locs = c.stock_locations || [];
-        const totalQty = locs.reduce((sum, s) => sum + s.quantity, 0);
-
-        const badgesHtml = locs.map(s => `
-          <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-md text-xs font-medium mr-2 mb-1 dept-${s.department}">
-            <span><strong>${s.department}:</strong> ${s.quantity} pcs</span>
-            <span class="opacity-80">(${s.storage_bin} • <strong>${s.owner_person}</strong>)</span>
-            <button onclick="openTakeModal('${s.id}', '${c.mpn}', '${s.department}', ${s.quantity}, '${s.storage_bin}')"
-              class="ml-1 bg-white/80 hover:bg-white text-slate-800 px-1.5 py-0.5 rounded border border-current text-[11px] font-bold">
-              Use / Borrow
-            </button>
-          </div>
-        `).join("");
-
-        const lcscUrl = c.lcsc_pn ? `https://www.lcsc.com/search?q=${encodeURIComponent(c.lcsc_pn)}` : null;
-        const mouserUrl = c.mouser_pn ? `https://www.mouser.com/c/?q=${encodeURIComponent(c.mouser_pn)}` : null;
-
-        tbody.innerHTML += `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="py-3.5 px-4">
-              <div class="font-bold text-slate-900 font-mono">${c.mpn}</div>
-              <div class="flex gap-2 mt-1 text-xs">
-                ${c.lcsc_pn ? `<a href="${lcscUrl}" target="_blank" class="text-blue-600 hover:underline">LCSC: ${c.lcsc_pn} ↗</a>` : ""}
-                ${c.mouser_pn ? `<a href="${mouserUrl}" target="_blank" class="text-orange-600 hover:underline">Mouser: ${c.mouser_pn} ↗</a>` : ""}
-              </div>
-            </td>
-            <td class="py-3.5 px-4">
-              <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-medium">${c.category}</span>
-              <div class="text-xs text-slate-500 font-mono mt-1">${c.package || "—"}</div>
-            </td>
-            <td class="py-3.5 px-4 text-slate-700 max-w-xs text-xs leading-relaxed">${c.description}</td>
-            <td class="py-3.5 px-4">${badgesHtml || '<span class="text-xs text-slate-400">Out of stock</span>'}</td>
-            <td class="py-3.5 px-4 text-right font-bold text-base ${totalQty > 0 ? 'text-emerald-700' : 'text-red-500'}">${totalQty.toLocaleString()}</td>
-            <td class="py-3.5 px-4 text-center">
-              <button onclick="prefillRestock('${c.mpn}', '${c.category}', '${c.lcsc_pn || ''}', '${c.mouser_pn || ''}', '${c.package || ''}', '${c.description.replace(/'/g, "")}')"
-                class="text-xs text-blue-600 hover:text-blue-800 font-semibold border border-blue-200 bg-blue-50 px-2.5 py-1 rounded">
-                + Add Stock
-              </button>
-            </td>
-          </tr>
-        `;
-      });
-    }
-
-    function renderTransactions() {
-      const container = document.getElementById("txLogContainer");
-      if (!transactionsData.length) {
-        container.innerHTML = `<p class="text-slate-400">No component transactions logged yet.</p>`;
-        return;
-      }
-      container.innerHTML = transactionsData.map(t => `
-        <div class="flex justify-between items-center border-b border-slate-100 pb-1.5">
-          <div>
-            <span class="font-mono font-bold text-slate-800">${t.component_mpn}</span>
-            <span class="${t.qty_changed < 0 ? 'text-amber-700 font-bold' : 'text-emerald-700 font-bold'} ml-2">
-              ${t.qty_changed > 0 ? '+' + t.qty_changed : t.qty_changed} pcs
-            </span>
-            <span class="text-slate-500 ml-1">(${t.department}) by <strong>${t.engineer_name}</strong> — ${t.project_note}</span>
-          </div>
-          <span class="text-slate-400">${new Date(t.created_at).toLocaleDateString()}</span>
-        </div>
-      `).join("");
-    }
-
-    // ============================================================================
-    // 6. SINGLE PART ADD & BORROW HANDLERS
-    // ============================================================================
+    // 13. SINGLE PART ADD HANDLER
     async function handleAddPart(e) {
       e.preventDefault();
       const mpn = document.getElementById("f_mpn").value.trim().toUpperCase();
@@ -827,20 +2134,23 @@
       const storage_bin = document.getElementById("f_bin").value.trim();
       const owner_person = document.getElementById("f_owner").value.trim();
 
-      if (isLiveSupabase) {
+      if (isConnectedToSupabase) {
         let { data: existingComp } = await supabaseClient.from("components").select("*").eq("mpn", mpn).maybeSingle();
         if (!existingComp) {
           const { data: created } = await supabaseClient.from("components")
             .insert({ mpn, category, lcsc_pn, mouser_pn, package: pkg, description }).select().single();
           existingComp = created;
         }
+
         await supabaseClient.from("stock_locations").insert({
           component_id: existingComp.id, department, owner_person, storage_bin, quantity
         });
+
         await supabaseClient.from("transactions").insert({
           component_mpn: mpn, department, engineer_name: owner_person,
-          action_type: "ADD", qty_changed: quantity, project_note: `Added to ${storage_bin}`
+          action_type: "ADD", qty_changed: quantity, project_note: `Added to ${storage_bin} by ${owner_person}`
         });
+
         await loadInventory();
       } else {
         let comp = componentsData.find(c => c.mpn === mpn);
@@ -849,25 +2159,42 @@
           componentsData.unshift(comp);
         }
         comp.stock_locations.push({ id: "s_" + Date.now(), department, owner_person, storage_bin, quantity });
+
         transactionsData.unshift({
-          component_mpn: mpn, department, engineer_name: owner_person,
-          action_type: "ADD", qty_changed: quantity, project_note: `Added to ${storage_bin}`,
+          id: "tx_" + Date.now(),
+          component_mpn: mpn,
+          department,
+          engineer_name: owner_person,
+          action_type: "ADD",
+          qty_changed: quantity,
+          project_note: `Added to ${storage_bin}`,
           created_at: new Date().toISOString()
         });
-        saveLocalFallback();
+
+        saveLocalData();
+        updateMemberDropdowns();
         renderInventory();
         renderTransactions();
+        renderMemberDirectory();
+        analyzeDuplicates();
       }
+
+      showToast(`Added ${quantity} pcs of ${mpn} to ${department} (${owner_person})!`, "success");
       document.getElementById("addPartForm").reset();
       closeModal("addPartModal");
     }
 
-    function openTakeModal(stockId, mpn, dept, currentQty, bin) {
+    // 14. BORROW / TAKE COMPONENT HANDLER
+    function openTakeModal(stockId, mpn, dept, currentQty, bin, owner) {
       document.getElementById("t_stock_id").value = stockId;
       document.getElementById("t_mpn").value = mpn;
       document.getElementById("t_qty").max = currentQty;
-      document.getElementById("t_part_summary").textContent = `${mpn} (${dept} Stock)`;
-      document.getElementById("t_stock_summary").textContent = `Project/Bin: ${bin} • Available: ${currentQty} pcs`;
+      document.getElementById("t_qty").value = Math.min(1, currentQty);
+      document.getElementById("t_part_summary").textContent = mpn;
+      document.getElementById("t_dept_badge").textContent = `${dept} Stock`;
+      document.getElementById("t_dept_badge").className = `px-2 py-0.5 rounded text-[11px] font-bold dept-badge-${dept}`;
+      document.getElementById("t_stock_summary").textContent = `Bin: ${bin} • Owner: ${owner}`;
+      document.getElementById("t_available_badge").textContent = `${currentQty} pcs available`;
       openModal("takePartModal");
     }
 
@@ -877,16 +2204,23 @@
       const mpn = document.getElementById("t_mpn").value;
       const qtyToTake = parseInt(document.getElementById("t_qty").value, 10);
       const engineer = document.getElementById("t_engineer").value.trim();
+      const borrowerDept = document.getElementById("t_borrower_dept").value;
       const note = document.getElementById("t_note").value.trim();
 
-      if (isLiveSupabase) {
+      if (isConnectedToSupabase) {
         const { data: loc } = await supabaseClient.from("stock_locations").select("*").eq("id", stockId).single();
         const newQty = Math.max(0, loc.quantity - qtyToTake);
         await supabaseClient.from("stock_locations").update({ quantity: newQty }).eq("id", stockId);
+        
         await supabaseClient.from("transactions").insert({
-          component_mpn: mpn, department: loc.department, engineer_name: engineer,
-          action_type: "TAKE", qty_changed: -qtyToTake, project_note: note
+          component_mpn: mpn,
+          department: borrowerDept,
+          engineer_name: engineer,
+          action_type: "TAKE",
+          qty_changed: -qtyToTake,
+          project_note: `${note} (Borrowed from ${loc.department} - ${loc.owner_person})`
         });
+
         await loadInventory();
       } else {
         componentsData.forEach(c => {
@@ -894,18 +2228,128 @@
           if (loc) {
             loc.quantity = Math.max(0, loc.quantity - qtyToTake);
             transactionsData.unshift({
-              component_mpn: mpn, department: loc.department, engineer_name: engineer,
-              action_type: "TAKE", qty_changed: -qtyToTake, project_note: note,
+              id: "tx_" + Date.now(),
+              component_mpn: mpn,
+              department: borrowerDept,
+              engineer_name: engineer,
+              action_type: "TAKE",
+              qty_changed: -qtyToTake,
+              project_note: `${note} (Borrowed from ${loc.department} - ${loc.owner_person})`,
               created_at: new Date().toISOString()
             });
           }
         });
-        saveLocalFallback();
+
+        saveLocalData();
         renderInventory();
         renderTransactions();
+        renderMemberDirectory();
+        analyzeDuplicates();
       }
+
+      showToast(`Logged borrowing of ${qtyToTake} pcs of ${mpn} by ${engineer}!`, "success");
       document.getElementById("takePartForm").reset();
       closeModal("takePartModal");
+    }
+
+    // 15. TRANSFER COMPONENT HANDLER
+    function openTransferModal(stockId, mpn, dept, currentQty, bin, owner) {
+      document.getElementById("tr_stock_id").value = stockId;
+      document.getElementById("tr_mpn").value = mpn;
+      document.getElementById("tr_qty").max = currentQty;
+      document.getElementById("tr_qty").value = Math.min(1, currentQty);
+      document.getElementById("tr_summary_title").textContent = `${mpn} (${currentQty} pcs available)`;
+      document.getElementById("tr_summary_desc").textContent = `Currently in ${dept} with ${owner} (Bin: ${bin})`;
+      openModal("transferPartModal");
+    }
+
+    async function handleTransferPart(e) {
+      e.preventDefault();
+      const stockId = document.getElementById("tr_stock_id").value;
+      const mpn = document.getElementById("tr_mpn").value;
+      const qty = parseInt(document.getElementById("tr_qty").value, 10);
+      const toDept = document.getElementById("tr_to_dept").value;
+      const toOwner = document.getElementById("tr_to_owner").value.trim();
+      const toBin = document.getElementById("tr_to_bin").value.trim();
+      const note = document.getElementById("tr_note").value.trim();
+
+      // Deduct from source, add to target
+      if (isConnectedToSupabase) {
+        const { data: sourceLoc } = await supabaseClient.from("stock_locations").select("*").eq("id", stockId).single();
+        if (sourceLoc) {
+          await supabaseClient.from("stock_locations").update({ quantity: Math.max(0, sourceLoc.quantity - qty) }).eq("id", stockId);
+          
+          await supabaseClient.from("stock_locations").insert({
+            component_id: sourceLoc.component_id,
+            department: toDept,
+            owner_person: toOwner,
+            storage_bin: toBin,
+            quantity: qty
+          });
+
+          await supabaseClient.from("transactions").insert({
+            component_mpn: mpn,
+            department: toDept,
+            engineer_name: toOwner,
+            action_type: "TRANSFER",
+            qty_changed: qty,
+            project_note: `Transferred from ${sourceLoc.department} (${sourceLoc.owner_person}) to ${toDept} (${toOwner}) — ${note}`
+          });
+          await loadInventory();
+        }
+      } else {
+        let comp = null;
+        let sourceLoc = null;
+        componentsData.forEach(c => {
+          const found = (c.stock_locations || []).find(s => s.id === stockId);
+          if (found) {
+            comp = c;
+            sourceLoc = found;
+          }
+        });
+
+        if (sourceLoc && comp) {
+          sourceLoc.quantity = Math.max(0, sourceLoc.quantity - qty);
+          
+          let targetLoc = comp.stock_locations.find(
+            s => s.department === toDept && s.owner_person.toLowerCase() === toOwner.toLowerCase() && s.storage_bin.toLowerCase() === toBin.toLowerCase()
+          );
+
+          if (targetLoc) {
+            targetLoc.quantity += qty;
+          } else {
+            comp.stock_locations.push({
+              id: "s_" + Date.now(),
+              department: toDept,
+              owner_person: toOwner,
+              storage_bin: toBin,
+              quantity: qty
+            });
+          }
+
+          transactionsData.unshift({
+            id: "tx_" + Date.now(),
+            component_mpn: mpn,
+            department: toDept,
+            engineer_name: toOwner,
+            action_type: "TRANSFER",
+            qty_changed: qty,
+            project_note: `Transferred from ${sourceLoc.department} (${sourceLoc.owner_person}) to ${toDept} (${toOwner}) — ${note}`,
+            created_at: new Date().toISOString()
+          });
+
+          saveLocalData();
+          updateMemberDropdowns();
+          renderInventory();
+          renderTransactions();
+          renderMemberDirectory();
+          analyzeDuplicates();
+        }
+      }
+
+      showToast(`Transferred ${qty} pcs of ${mpn} to ${toOwner} (${toDept})!`, "success");
+      document.getElementById("transferPartForm").reset();
+      closeModal("transferPartModal");
     }
 
     function prefillRestock(mpn, category, lcsc, mouser, pkg, desc) {
@@ -915,46 +2359,134 @@
       document.getElementById("f_mouser").value = mouser;
       document.getElementById("f_package").value = pkg;
       document.getElementById("f_desc").value = desc;
+      document.getElementById("addPartModalTitle").textContent = `Restock ${mpn}`;
       openModal("addPartModal");
     }
 
-    function runBomCheck() {
-      const raw = document.getElementById("bomInput").value;
-      const tokens = raw.split(/[\n,;]+/).map(t => t.trim().toUpperCase()).filter(Boolean);
-      const container = document.getElementById("bomResults");
-      if (!tokens.length) return;
+    // 16. TRANSACTIONS LOG RENDERING
+    function renderTransactions() {
+      const tbody = document.getElementById("txFullTableBody");
+      const search = (document.getElementById("txSearchInput")?.value || "").trim().toLowerCase();
+      const actionFilter = document.getElementById("txActionFilter")?.value || "ALL";
 
-      container.innerHTML = tokens.map(token => {
-        const match = componentsData.find(c =>
-          c.mpn.toUpperCase() === token ||
-          (c.lcsc_pn && c.lcsc_pn.toUpperCase() === token) ||
-          (c.mouser_pn && c.mouser_pn.toUpperCase() === token)
-        );
-        if (match) {
-          const breakdown = (match.stock_locations || [])
-            .map(s => `${s.department}: ${s.quantity} pcs (Owner: ${s.owner_person}, Bin: ${s.storage_bin})`).join(" | ");
-          return `
-            <div class="p-3 bg-emerald-50 flex justify-between items-center text-xs">
-              <div>
-                <span class="font-mono font-bold text-emerald-900">${token}</span>
-                <span class="ml-2 text-emerald-700 font-semibold">✓ AVAILABLE IN COMPANY</span>
-                <div class="text-slate-600 mt-0.5">${breakdown}</div>
-              </div>
-            </div>`;
-        } else {
-          return `
-            <div class="p-3 bg-white flex justify-between items-center text-xs">
-              <span class="font-mono font-bold text-slate-700">${token}</span>
-              <span class="text-amber-600 font-semibold">Not in stock — Needs LCSC/Mouser Order</span>
-            </div>`;
-        }
+      const filtered = transactionsData.filter(t => {
+        const matchesAction = actionFilter === "ALL" || t.action_type === actionFilter;
+        const matchesSearch = !search ||
+          (t.component_mpn && t.component_mpn.toLowerCase().includes(search)) ||
+          (t.engineer_name && t.engineer_name.toLowerCase().includes(search)) ||
+          (t.department && t.department.toLowerCase().includes(search)) ||
+          (t.project_note && t.project_note.toLowerCase().includes(search));
+        return matchesAction && matchesSearch;
+      });
+
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">No activity logs recorded.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(t => {
+        const isDeduct = t.qty_changed < 0 || t.action_type === "TAKE";
+        const badgeColor = isDeduct ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800";
+        const dateStr = t.created_at ? new Date(t.created_at).toLocaleString() : "Just now";
+
+        return `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-2.5 px-3 font-mono text-slate-500 text-[11px]">${dateStr}</td>
+            <td class="py-2.5 px-3">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeColor}">
+                ${t.action_type}
+              </span>
+            </td>
+            <td class="py-2.5 px-3 font-mono font-bold text-slate-800">${t.component_mpn}</td>
+            <td class="py-2.5 px-3 font-mono font-bold ${isDeduct ? 'text-amber-700' : 'text-emerald-700'}">
+              ${t.qty_changed > 0 ? '+' + t.qty_changed : t.qty_changed} pcs
+            </td>
+            <td class="py-2.5 px-3 font-medium text-slate-800">👤 ${t.engineer_name}</td>
+            <td class="py-2.5 px-3 text-slate-600">${t.department}</td>
+            <td class="py-2.5 px-3 text-slate-600 max-w-sm truncate" title="${t.project_note}">${t.project_note}</td>
+          </tr>
+        `;
       }).join("");
     }
 
-    function openModal(id) { document.getElementById(id).classList.remove("hidden"); document.getElementById(id).classList.add("flex"); }
-    function closeModal(id) { document.getElementById(id).classList.add("hidden"); document.getElementById(id).classList.remove("flex"); }
+    // 17. EXPORT TO EXCEL
+    function exportInventoryToExcel() {
+      const rows = [];
+      componentsData.forEach(c => {
+        (c.stock_locations || []).forEach(loc => {
+          rows.push({
+            "MPN": c.mpn,
+            "Category": c.category,
+            "Package": c.package || "",
+            "Description": c.description,
+            "Department": loc.department,
+            "Owner": loc.owner_person,
+            "Storage Bin": loc.storage_bin,
+            "Quantity": loc.quantity,
+            "LCSC Part #": c.lcsc_pn || "",
+            "Mouser Part #": c.mouser_pn || ""
+          });
+        });
+      });
 
-    loadInventory();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Inventory");
+      XLSX.writeFile(wb, `VEGA_PCB_Inventory_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      showToast("Downloaded complete cross-department inventory Excel file!", "success");
+    }
+
+    function exportTransactionsToExcel() {
+      const ws = XLSX.utils.json_to_sheet(transactionsData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "AuditLog");
+      XLSX.writeFile(wb, `VEGA_Inventory_AuditLog_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      showToast("Downloaded audit log spreadsheet!", "success");
+    }
+
+    // 18. TAB & MODAL HELPERS
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.classList.remove("border-blue-500", "text-blue-400");
+        btn.classList.add("border-transparent", "text-slate-400");
+      });
+
+      const targetContent = document.getElementById(`tabContent-${tabId}`);
+      const targetBtn = document.getElementById(`tabBtn-${tabId}`);
+
+      if (targetContent) targetContent.classList.remove("hidden");
+      if (targetBtn) {
+        targetBtn.classList.add("border-blue-500", "text-blue-400");
+        targetBtn.classList.remove("border-transparent", "text-slate-400");
+      }
+
+      if (tabId === "members") renderMemberDirectory();
+      if (tabId === "activity") renderTransactions();
+    }
+
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.remove("hidden");
+        el.classList.add("flex");
+      }
+    }
+
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.add("hidden");
+        el.classList.remove("flex");
+      }
+    }
+
+    // Initialize on page load
+    window.addEventListener("DOMContentLoaded", () => {
+      loadInventory();
+    });
   </script>
 </body>
+</html>
+
 </html>
