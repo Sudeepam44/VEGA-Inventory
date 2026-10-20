@@ -122,7 +122,7 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-lg font-bold tracking-tight text-white">VEGA Component Hub</h1>
-            <span class="text-[10px] font-semibold uppercase tracking-wider bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700">v2.5</span>
+            <span class="text-[10px] font-semibold uppercase tracking-wider bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700">v2.8</span>
           </div>
           <p class="text-xs text-slate-400">Cross-Department PCB & Component Sharing — <span class="text-blue-400 font-medium">Automotive</span> • <span class="text-emerald-400 font-medium">Battery</span> • <span class="text-amber-400 font-medium">Chargenet</span></p>
         </div>
@@ -136,8 +136,15 @@
           <span>Checking sync...</span>
         </span>
 
+        <!-- Request Component Button -->
+        <button onclick="openRequestModal()" 
+          class="bg-purple-600 hover:bg-purple-500 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition shadow flex items-center gap-1.5">
+          <span>🤝</span>
+          <span>Request / Swap Part</span>
+        </button>
+
         <!-- Pre-Order Checker Button (Prominent to save money!) -->
-        <button onclick="switchTab('checker'); openModal('bomCheckModal')" 
+        <button onclick="switchTab('checker')" 
           class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition shadow flex items-center gap-1.5">
           <span>💰</span>
           <span>Pre-Order Checker</span>
@@ -147,7 +154,7 @@
         <button onclick="openModal('uploadBomModal')" 
           class="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition shadow flex items-center gap-1.5">
           <span>⬆</span>
-          <span>Import LCSC/Mouser BOM</span>
+          <span>Import BOM</span>
         </button>
 
         <!-- Add Single Part -->
@@ -173,13 +180,21 @@
           <span>📦 Component Inventory</span>
           <span id="badgeTabInventoryCount" class="bg-blue-500/20 text-blue-300 text-[11px] px-1.5 py-0.2 rounded-full font-mono">0</span>
         </button>
+
+        <button id="tabBtn-requests" onclick="switchTab('requests')" class="tab-btn px-3 py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap">
+          <span>🤝 Requests & Exchanges</span>
+          <span id="badgePendingRequestsCount" class="bg-amber-500/20 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">0 pending</span>
+        </button>
+
         <button id="tabBtn-checker" onclick="switchTab('checker')" class="tab-btn px-3 py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap">
           <span>🔍 Pre-Order Duplicate Checker</span>
           <span class="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">Save Money</span>
         </button>
+
         <button id="tabBtn-members" onclick="switchTab('members')" class="tab-btn px-3 py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap">
           <span>👥 Member Drawers ("Who Has What?")</span>
         </button>
+
         <button id="tabBtn-activity" onclick="switchTab('activity')" class="tab-btn px-3 py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap">
           <span>📜 Audit & Activity Log</span>
         </button>
@@ -206,12 +221,13 @@
   <!-- Main Content Area -->
   <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full space-y-6">
 
-    <!-- TAB 1: INVENTORY CATALOG -->
+    <!-- ======================================================================== -->
+    <!-- TAB 1: INVENTORY CATALOG                                                 -->
+    <!-- ======================================================================== -->
     <div id="tabContent-inventory" class="tab-content space-y-5">
       
       <!-- Department Summary KPI Cards -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        
         <!-- Total Unique Parts -->
         <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-slate-300 transition">
           <div class="flex items-center justify-between text-slate-500">
@@ -271,12 +287,10 @@
           </div>
           <p id="statChgHolders" class="text-[11px] text-orange-600/80 mt-1 truncate">0 members holding</p>
         </div>
-
       </div>
 
       <!-- Quick Filter Bar -->
       <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
-        
         <!-- Department Quick Pills -->
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
           <div class="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
@@ -316,8 +330,6 @@
 
         <!-- Search & Filter Controls -->
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-          
-          <!-- Search Input -->
           <div class="sm:col-span-5 relative">
             <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
               🔍
@@ -330,14 +342,11 @@
             </button>
           </div>
 
-          <!-- Member Filter (CRUCIAL for answering "Who has what?") -->
+          <!-- Member Filter -->
           <div class="sm:col-span-3">
-            <div class="relative">
-              <select id="memberFilter" onchange="renderInventory()" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white font-medium text-slate-700">
-                <option value="ALL">👤 All Team Members</option>
-                <!-- Populated dynamically -->
-              </select>
-            </div>
+            <select id="memberFilter" onchange="renderInventory()" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white font-medium text-slate-700">
+              <option value="ALL">👤 All Team Members</option>
+            </select>
           </div>
 
           <!-- Category Filter -->
@@ -359,7 +368,6 @@
               Reset
             </button>
           </div>
-
         </div>
 
         <!-- Active Filter Indicator Banner -->
@@ -367,7 +375,6 @@
           <span>Active filters:</span>
           <span id="activeFilterTags" class="flex flex-wrap gap-1"></span>
         </div>
-
       </div>
 
       <!-- Inventory Results Summary -->
@@ -391,7 +398,7 @@
                 <th class="py-3 px-4">Manufacturer Part # (MPN) & Supplier</th>
                 <th class="py-3 px-4">Category & Package</th>
                 <th class="py-3 px-4">Description / Specs</th>
-                <th class="py-3 px-4">Stock by Department (Location & Owner)</th>
+                <th class="py-3 px-4">Stock Locations & Members</th>
                 <th class="py-3 px-4 text-right">Total Available</th>
                 <th class="py-3 px-4 text-center">Actions</th>
               </tr>
@@ -401,12 +408,97 @@
         </div>
       </div>
 
-      <!-- CARDS VIEW (Optional modern layout) -->
+      <!-- CARDS VIEW -->
       <div id="inventoryCardsView" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-
     </div>
 
-    <!-- TAB 2: PRE-ORDER DUPLICATE CHECKER -->
+    <!-- ======================================================================== -->
+    <!-- TAB 2: COMPONENT REQUESTS & EXCHANGES                                    -->
+    <!-- ======================================================================== -->
+    <div id="tabContent-requests" class="tab-content hidden space-y-5">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-5">
+        
+        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-100 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-lg font-bold text-slate-900">Inter-Member Component Requests & Exchanges</h2>
+              <span class="bg-purple-100 text-purple-800 text-xs px-2.5 py-0.5 rounded-full font-bold">Member-to-Member Sharing</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">
+              Need components held by another colleague in <span class="text-blue-600 font-semibold">Automotive</span>, <span class="text-emerald-600 font-semibold">Battery</span>, or <span class="text-orange-600 font-semibold">Chargenet</span>? Request a temporary borrow, permanent transfer, or swap components here.
+            </p>
+          </div>
+          <button onclick="openRequestModal()" class="bg-purple-600 hover:bg-purple-500 text-white font-semibold px-4 py-2 rounded-xl text-xs sm:text-sm transition shadow flex items-center gap-1.5 self-start sm:self-auto">
+            <span>+</span>
+            <span>New Component Request</span>
+          </button>
+        </div>
+
+        <!-- Filter Bar for Requests -->
+        <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
+          <div class="flex flex-wrap items-center gap-1.5 font-semibold">
+            <span class="text-slate-400 mr-1 text-[11px] uppercase tracking-wider">Status:</span>
+            <button onclick="setRequestStatusFilter('ALL')" id="reqFilter-ALL" class="req-filter-btn px-2.5 py-1 rounded-lg bg-slate-900 text-white transition">
+              All (<span id="countReqAll">0</span>)
+            </button>
+            <button onclick="setRequestStatusFilter('PENDING')" id="reqFilter-PENDING" class="req-filter-btn px-2.5 py-1 rounded-lg bg-slate-200 text-slate-700 hover:bg-amber-100 transition">
+              ⏳ Pending Approval (<span id="countReqPending">0</span>)
+            </button>
+            <button onclick="setRequestStatusFilter('LOAN_ACTIVE')" id="reqFilter-LOAN_ACTIVE" class="req-filter-btn px-2.5 py-1 rounded-lg bg-slate-200 text-slate-700 hover:bg-blue-100 transition">
+              🔄 On Loan / Borrowed (<span id="countReqLoan">0</span>)
+            </button>
+            <button onclick="setRequestStatusFilter('COMPLETED')" id="reqFilter-COMPLETED" class="req-filter-btn px-2.5 py-1 rounded-lg bg-slate-200 text-slate-700 hover:bg-emerald-100 transition">
+              ✅ Completed / Exchanged (<span id="countReqDone">0</span>)
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <select id="reqMemberFilter" onchange="renderRequests()" class="px-2.5 py-1 border border-slate-300 rounded-lg text-xs bg-white font-medium">
+              <option value="ALL">Show requests for all members</option>
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Pending / Active Requests Cards Grid -->
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-2">
+            <span>Active Requests Queue</span>
+            <span class="text-slate-400 font-normal">(Needs action by component holder or borrower)</span>
+          </h3>
+          <div id="activeRequestsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+
+        <!-- History / Completed Exchanges Table -->
+        <div class="border-t border-slate-200 pt-5 space-y-3">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">Past Exchanges & Borrow History</h3>
+          <div class="border border-slate-200 rounded-xl overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead class="bg-slate-100 text-slate-600 font-semibold uppercase">
+                  <tr>
+                    <th class="py-2.5 px-3">Date</th>
+                    <th class="py-2.5 px-3">Component (MPN)</th>
+                    <th class="py-2.5 px-3">Quantity</th>
+                    <th class="py-2.5 px-3">Requester</th>
+                    <th class="py-2.5 px-3">Provider / Holder</th>
+                    <th class="py-2.5 px-3">Type</th>
+                    <th class="py-2.5 px-3">Status</th>
+                    <th class="py-2.5 px-3">Project / Swap Details</th>
+                  </tr>
+                </thead>
+                <tbody id="requestsHistoryTableBody" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ======================================================================== -->
+    <!-- TAB 3: PRE-ORDER DUPLICATE CHECKER                                       -->
+    <!-- ======================================================================== -->
     <div id="tabContent-checker" class="tab-content hidden space-y-5">
       <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-5">
         
@@ -426,7 +518,6 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          
           <!-- Input Area -->
           <div class="lg:col-span-5 space-y-3">
             <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">
@@ -464,17 +555,18 @@
               <div class="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400">
                 <span class="text-3xl mb-2">📋</span>
                 <p class="font-medium text-sm text-slate-600">Enter component numbers on the left to start checking</p>
-                <p class="text-xs text-slate-400 mt-1">We will match against all Automotive, Battery, and Chargenet stocks and tell you who to borrow from.</p>
+                <p class="text-xs text-slate-400 mt-1">We will match against all Automotive, Battery, and Chargenet stocks and let you borrow directly from colleagues.</p>
               </div>
             </div>
           </div>
-
         </div>
 
       </div>
     </div>
 
-    <!-- TAB 3: MEMBER DRAWERS ("WHO HAS WHAT?") -->
+    <!-- ======================================================================== -->
+    <!-- TAB 4: MEMBER DRAWERS ("WHO HAS WHAT?")                                  -->
+    <!-- ======================================================================== -->
     <div id="tabContent-members" class="tab-content hidden space-y-5">
       <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
         <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-100 pb-4">
@@ -495,7 +587,9 @@
       </div>
     </div>
 
-    <!-- TAB 4: AUDIT & RECENT ACTIVITY LOG -->
+    <!-- ======================================================================== -->
+    <!-- TAB 5: AUDIT & RECENT ACTIVITY LOG                                       -->
+    <!-- ======================================================================== -->
     <div id="tabContent-activity" class="tab-content hidden space-y-5">
       <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
         
@@ -518,6 +612,7 @@
           
           <select id="txActionFilter" onchange="renderTransactions()" class="px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white text-slate-700">
             <option value="ALL">All Actions</option>
+            <option value="REQUEST_APPROVED">Approved Requests</option>
             <option value="TAKE">Borrowed / Used</option>
             <option value="ADD">Added / Restocked</option>
             <option value="TRANSFER">Transferred</option>
@@ -562,12 +657,101 @@
   </footer>
 
   <!-- ============================================================================ -->
+  <!-- MODAL: Request / Borrow / Swap Component from Colleague                      -->
+  <!-- ============================================================================ -->
+  <div id="requestPartModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-slide-down max-h-[92vh] flex flex-col">
+      <div class="flex justify-between items-center border-b pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🤝</span>
+          <div>
+            <h3 class="font-bold text-lg text-slate-900">Request Component from Colleague</h3>
+            <p class="text-xs text-slate-500">Borrow or exchange components directly between members</p>
+          </div>
+        </div>
+        <button onclick="closeModal('requestPartModal')" class="text-slate-400 hover:text-slate-600 text-2xl font-bold leading-none">&times;</button>
+      </div>
+
+      <form id="requestPartForm" onsubmit="handleCreateRequest(event)" class="space-y-3.5 text-xs flex-1 overflow-y-auto pr-1">
+        
+        <!-- Component Selection -->
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Manufacturer Part # (MPN) Needed*</label>
+          <input id="req_mpn" required list="componentMpnList" onchange="onReqMpnChanged(this.value)" placeholder="e.g. TCAN3403DRBRQ1" class="w-full border rounded-lg px-3 py-2 uppercase font-mono font-bold text-slate-900">
+          <datalist id="componentMpnList"></datalist>
+        </div>
+
+        <!-- Target Colleague & Stock Info -->
+        <div class="p-3 bg-purple-50/60 rounded-xl border border-purple-200 space-y-2">
+          <label class="block font-semibold text-purple-950">Request from which Colleague?*</label>
+          <select id="req_target_holder" required onchange="onTargetHolderChanged()" class="w-full border border-purple-300 rounded-lg px-3 py-2 bg-white text-xs font-medium">
+            <option value="">Select a colleague who holds this part...</option>
+          </select>
+          <div id="req_holder_info" class="text-[11px] text-purple-800 hidden font-medium"></div>
+        </div>
+
+        <!-- Quantity & Type -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Quantity Needed*</label>
+            <input id="req_qty" type="number" min="1" required placeholder="e.g. 5" class="w-full border rounded-lg px-3 py-2 font-bold text-slate-900">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Request Arrangement*</label>
+            <select id="req_type" onchange="toggleExchangeField(this.value)" class="w-full border rounded-lg px-3 py-2 bg-white font-medium">
+              <option value="LOAN">🔄 Temporary Borrow (will return)</option>
+              <option value="PERMANENT">📦 Permanent Transfer (keep for board)</option>
+              <option value="EXCHANGE">⚖️ Component Swap / Exchange</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- If Exchange Selected -->
+        <div id="exchangeOfferContainer" class="hidden p-3 bg-amber-50 rounded-xl border border-amber-200 space-y-2">
+          <label class="block font-semibold text-amber-900">Component you offer in exchange:*</label>
+          <input id="req_offered_comp" placeholder="e.g. 5x STM32F103 or 20x 100uF capacitors" class="w-full border border-amber-300 rounded-lg px-3 py-2 bg-white text-xs">
+          <p class="text-[10px] text-amber-700">Specify what component you are offering to trade with your colleague.</p>
+        </div>
+
+        <!-- Requester Information -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Your Name (Requester)*</label>
+            <input id="req_requester" list="memberSuggestions" required placeholder="e.g. Sudeepa" class="w-full border rounded-lg px-3 py-2 font-medium">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Your Department*</label>
+            <select id="req_requester_dept" class="w-full border rounded-lg px-3 py-2 bg-white font-medium">
+              <option value="Automotive">🚗 Automotive</option>
+              <option value="Battery">🔋 Battery</option>
+              <option value="Chargenet">⚡ Chargenet</option>
+              <option value="Shared Lab">🏢 Shared Lab</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Note & Purpose -->
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Project / Prototype Purpose*</label>
+          <textarea id="req_reason" required rows="2" placeholder="e.g. Urgent ETX CAN bus prototyping. Need 4 pcs today, will return when LCSC order arrives." class="w-full border rounded-lg p-2.5 text-xs"></textarea>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t">
+          <button type="button" onclick="closeModal('requestPartModal')" class="px-4 py-2 rounded-lg border text-slate-600 hover:bg-slate-50 font-medium">Cancel</button>
+          <button type="submit" class="px-5 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold transition shadow flex items-center gap-1.5">
+            <span>✓</span>
+            <span>Send Request to Colleague</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================================ -->
   <!-- MODAL: Upload LCSC / Mouser BOM File                                         -->
   <!-- ============================================================================ -->
   <div id="uploadBomModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-4 max-h-[92vh] flex flex-col animate-slide-down">
-      
-      <!-- Modal Header -->
       <div class="flex justify-between items-center border-b pb-3">
         <div>
           <div class="flex items-center gap-2">
@@ -650,7 +834,6 @@
           </button>
         </div>
       </div>
-
     </div>
   </div>
 
@@ -743,14 +926,14 @@
   </div>
 
   <!-- ============================================================================ -->
-  <!-- MODAL: Take / Borrow Component                                              -->
+  <!-- MODAL: Take / Borrow Component Directly                                      -->
   <!-- ============================================================================ -->
   <div id="takePartModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-slide-down">
       <div class="flex justify-between items-center border-b pb-3">
         <div class="flex items-center gap-2">
           <span class="text-xl">🤝</span>
-          <h3 class="font-bold text-lg text-slate-900">Borrow / Use Component</h3>
+          <h3 class="font-bold text-lg text-slate-900">Use / Borrow Component</h3>
         </div>
         <button onclick="closeModal('takePartModal')" class="text-slate-400 hover:text-slate-600 text-2xl font-bold leading-none">&times;</button>
       </div>
@@ -882,7 +1065,6 @@
   <!-- ============================================================================ -->
   <script>
     // 1. SUPABASE CONFIGURATION
-    // Note: Supabase createClient requires the root URL without '/rest/v1/'
     const RAW_SUPABASE_URL = "https://btlmrnbuoytmwvfikktm.supabase.co";
     const SUPABASE_URL = RAW_SUPABASE_URL.replace(/\/rest\/v1\/?$/, "");
     const SUPABASE_ANON_KEY = "sb_publishable_g3kuOq9CYn7icBaMQZSa0Q_gpL1h4Pl";
@@ -902,26 +1084,22 @@
     // App State
     let componentsData = [];
     let transactionsData = [];
+    let requestsData = [];
     let parsedBomItems = [];
     let lastUploadedWorkbook = null;
     let currentDeptFilter = "ALL";
-    let currentViewMode = "table"; // 'table' or 'cards'
+    let currentViewMode = "table";
     let onlyShowDuplicates = false;
+    let currentReqFilter = "ALL";
 
     const KNOWN_MEMBERS = ["Sudeepa", "Kasun", "Nuwan", "Chathura", "Harsha", "Shared Lab"];
 
-    // 2. TOAST NOTIFICATIONS (No jarring alert popups!)
+    // 2. TOAST NOTIFICATIONS
     function showToast(message, type = "info", durationMs = 4000) {
       const container = document.getElementById("toastContainer");
       const toast = document.createElement("div");
       
-      const icons = {
-        success: "✓",
-        error: "✕",
-        warning: "⚠️",
-        info: "ℹ"
-      };
-
+      const icons = { success: "✓", error: "✕", warning: "⚠️", info: "ℹ" };
       const colors = {
         success: "bg-emerald-800 text-white border-emerald-700",
         error: "bg-red-800 text-white border-red-700",
@@ -992,10 +1170,23 @@
         fallbackToLocalStorage(badge);
       }
 
+      // Load requests data from local storage
+      const savedRequests = localStorage.getItem("vega_requests_v3");
+      if (savedRequests) {
+        try {
+          requestsData = JSON.parse(savedRequests);
+        } catch (e) {
+          initDefaultRequests();
+        }
+      } else {
+        initDefaultRequests();
+      }
+
       updateMemberDropdowns();
       renderInventory();
       renderTransactions();
       renderMemberDirectory();
+      renderRequests();
       analyzeDuplicates();
     }
 
@@ -1012,7 +1203,6 @@
           componentsData = JSON.parse(saved);
           transactionsData = savedTx ? JSON.parse(savedTx) : [];
         } catch (e) {
-          console.error("Corrupt local storage", e);
           initDefaultSampleData();
         }
       } else {
@@ -1020,8 +1210,43 @@
       }
     }
 
+    function initDefaultRequests() {
+      requestsData = [
+        {
+          id: "req_1",
+          mpn: "TCAN3403DRBRQ1",
+          requester_name: "Sudeepa",
+          requester_dept: "Automotive",
+          target_owner: "Kasun",
+          target_dept: "Battery",
+          storage_bin: "BMS_MAIN_R1",
+          quantity: 4,
+          request_type: "LOAN",
+          offered_component: "",
+          reason: "Urgent prototype testing for ETX OBD-II board bring-up. Will return when LCSC shipment arrives.",
+          status: "PENDING", // PENDING, APPROVED, RETURNED, DECLINED
+          created_at: new Date(Date.now() - 3600000 * 3).toISOString()
+        },
+        {
+          id: "req_2",
+          mpn: "100uF 25V 0805 X5R",
+          requester_name: "Nuwan",
+          requester_dept: "Chargenet",
+          target_owner: "Chathura",
+          target_dept: "Automotive",
+          storage_bin: "REEL_RACK_A",
+          quantity: 50,
+          request_type: "EXCHANGE",
+          offered_component: "50 pcs of 10uF 50V MLCC 0805",
+          reason: "Urgent assembly of AC Charger pilot units. Exchanging with 10uF 50V caps.",
+          status: "APPROVED",
+          created_at: new Date(Date.now() - 3600000 * 20).toISOString()
+        }
+      ];
+      saveRequestsData();
+    }
+
     function initDefaultSampleData() {
-      // Pre-seeded realistic components across Automotive, Battery, and Chargenet
       componentsData = [
         {
           id: "c1",
@@ -1172,6 +1397,24 @@
       }
     }
 
+    function saveRequestsData() {
+      localStorage.setItem("vega_requests_v3", JSON.stringify(requestsData));
+      updatePendingBadge();
+    }
+
+    function updatePendingBadge() {
+      const pendingCount = requestsData.filter(r => r.status === "PENDING").length;
+      const badge = document.getElementById("badgePendingRequestsCount");
+      if (badge) {
+        badge.textContent = `${pendingCount} pending`;
+        if (pendingCount > 0) {
+          badge.className = "bg-amber-500/20 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase animate-pulse";
+        } else {
+          badge.className = "bg-slate-700 text-slate-400 text-[10px] font-medium px-2 py-0.5 rounded-full uppercase";
+        }
+      }
+    }
+
     // 5. UPDATE MEMBER LIST & SUGGESTIONS
     function updateMemberDropdowns() {
       const allMembers = new Set(KNOWN_MEMBERS);
@@ -1199,17 +1442,460 @@
         opt.value = m;
         suggestions.appendChild(opt);
       });
+
+      // Populate MPN list for requests
+      const mpnList = document.getElementById("componentMpnList");
+      if (mpnList) {
+        mpnList.innerHTML = componentsData.map(c => `<option value="${c.mpn}">${c.description}</option>`).join("");
+      }
+
+      // Populate Member filter in requests tab
+      const reqMemberSelect = document.getElementById("reqMemberFilter");
+      if (reqMemberSelect) {
+        reqMemberSelect.innerHTML = `<option value="ALL">Show requests for all members</option>`;
+        Array.from(allMembers).sort().forEach(m => {
+          reqMemberSelect.innerHTML += `<option value="${m}">Involving 👤 ${m}</option>`;
+        });
+      }
     }
 
-    // 6. DUPLICATE ANALYSIS & AVOID MONEY WASTE
+    // 6. COMPONENT REQUESTS & EXCHANGES WORKFLOW
+    function openRequestModal(prefillMpn = "", targetOwner = "", targetDept = "", bin = "", maxQty = 1) {
+      document.getElementById("requestPartForm").reset();
+      const mpnInput = document.getElementById("req_mpn");
+      
+      if (prefillMpn) {
+        mpnInput.value = prefillMpn;
+        onReqMpnChanged(prefillMpn, targetOwner);
+      } else {
+        onReqMpnChanged("");
+      }
+
+      if (maxQty > 1) {
+        document.getElementById("req_qty").value = Math.min(2, maxQty);
+      }
+
+      toggleExchangeField("LOAN");
+      openModal("requestPartModal");
+    }
+
+    function onReqMpnChanged(mpn, preferredOwner = "") {
+      const select = document.getElementById("req_target_holder");
+      select.innerHTML = "";
+
+      const comp = componentsData.find(c => c.mpn.toUpperCase() === (mpn || "").trim().toUpperCase());
+      const holders = comp ? (comp.stock_locations || []).filter(l => l.quantity > 0) : [];
+
+      if (holders.length > 0) {
+        select.innerHTML = `<option value="">-- Choose Colleague to Request From (${holders.length} available) --</option>`;
+        holders.forEach(h => {
+          const isSelected = preferredOwner && h.owner_person.toLowerCase() === preferredOwner.toLowerCase();
+          select.innerHTML += `
+            <option value="${h.id}|${h.owner_person}|${h.department}|${h.storage_bin}|${h.quantity}" ${isSelected ? 'selected' : ''}>
+              👤 ${h.owner_person} (${h.department} • Bin: ${h.storage_bin}) — ${h.quantity} pcs in stock
+            </option>
+          `;
+        });
+      } else {
+        select.innerHTML = `<option value="">No current holder recorded — select any colleague:</option>`;
+        KNOWN_MEMBERS.forEach(m => {
+          select.innerHTML += `<option value="0|${m}|Shared Lab|General|0">👤 ${m}</option>`;
+        });
+      }
+      onTargetHolderChanged();
+    }
+
+    function onTargetHolderChanged() {
+      const select = document.getElementById("req_target_holder");
+      const info = document.getElementById("req_holder_info");
+      const val = select.value;
+      if (!val) {
+        info.classList.add("hidden");
+        return;
+      }
+      const parts = val.split("|");
+      const owner = parts[1];
+      const dept = parts[2];
+      const bin = parts[3];
+      const qty = parseInt(parts[4] || 0, 10);
+
+      info.classList.remove("hidden");
+      if (qty > 0) {
+        info.innerHTML = `✓ ${owner} has <strong>${qty} pcs</strong> in ${dept} (${bin}). Max you can request: ${qty} pcs.`;
+        document.getElementById("req_qty").max = qty;
+      } else {
+        info.innerHTML = `Requesting directly from ${owner}.`;
+      }
+    }
+
+    function toggleExchangeField(type) {
+      const container = document.getElementById("exchangeOfferContainer");
+      if (type === "EXCHANGE") {
+        container.classList.remove("hidden");
+        document.getElementById("req_offered_comp").required = true;
+      } else {
+        container.classList.add("hidden");
+        document.getElementById("req_offered_comp").required = false;
+      }
+    }
+
+    function handleCreateRequest(e) {
+      e.preventDefault();
+      const mpn = document.getElementById("req_mpn").value.trim().toUpperCase();
+      const holderVal = document.getElementById("req_target_holder").value;
+      if (!holderVal) {
+        showToast("Please choose a colleague to request from", "warning");
+        return;
+      }
+
+      const holderParts = holderVal.split("|");
+      const targetOwner = holderParts[1];
+      const targetDept = holderParts[2];
+      const storageBin = holderParts[3];
+
+      const qty = parseInt(document.getElementById("req_qty").value, 10);
+      const reqType = document.getElementById("req_type").value;
+      const offeredComp = document.getElementById("req_offered_comp").value.trim();
+      const requester = document.getElementById("req_requester").value.trim();
+      const requesterDept = document.getElementById("req_requester_dept").value;
+      const reason = document.getElementById("req_reason").value.trim();
+
+      const newRequest = {
+        id: "req_" + Date.now(),
+        mpn,
+        requester_name: requester,
+        requester_dept: requesterDept,
+        target_owner: targetOwner,
+        target_dept: targetDept,
+        storage_bin: storageBin,
+        quantity: qty,
+        request_type: reqType,
+        offered_component: reqType === "EXCHANGE" ? offeredComp : "",
+        reason,
+        status: "PENDING",
+        created_at: new Date().toISOString()
+      };
+
+      requestsData.unshift(newRequest);
+      saveRequestsData();
+
+      // Log in transactions for Supabase/Audit trail
+      const auditNote = `Requested ${qty} pcs of ${mpn} from ${targetOwner} (${targetDept}) for ${reason}`;
+      logTransaction(mpn, requesterDept, requester, "REQUEST_CREATED", 0, auditNote);
+
+      showToast(`Request sent to ${targetOwner}! They can now approve and hand over the component.`, "success");
+      closeModal("requestPartModal");
+      switchTab("requests");
+      renderRequests();
+    }
+
+    async function approveRequest(reqId) {
+      const req = requestsData.find(r => r.id === reqId);
+      if (!req) return;
+
+      // Deduct from provider, give to requester
+      let comp = componentsData.find(c => c.mpn.toUpperCase() === req.mpn.toUpperCase());
+      if (comp) {
+        let sourceLoc = (comp.stock_locations || []).find(l => 
+          l.owner_person.toLowerCase() === req.target_owner.toLowerCase() && 
+          l.department.toLowerCase() === req.target_dept.toLowerCase()
+        );
+
+        if (sourceLoc) {
+          sourceLoc.quantity = Math.max(0, sourceLoc.quantity - req.quantity);
+        }
+
+        // Add to requester
+        let targetLoc = (comp.stock_locations || []).find(l =>
+          l.owner_person.toLowerCase() === req.requester_name.toLowerCase() &&
+          l.department.toLowerCase() === req.requester_dept.toLowerCase()
+        );
+
+        if (targetLoc) {
+          targetLoc.quantity += req.quantity;
+        } else {
+          comp.stock_locations.push({
+            id: "s_" + Date.now(),
+            department: req.requester_dept,
+            owner_person: req.requester_name,
+            storage_bin: "Desk Box / Received from " + req.target_owner,
+            quantity: req.quantity
+          });
+        }
+      }
+
+      req.status = req.request_type === "LOAN" ? "LOAN_ACTIVE" : "COMPLETED";
+      req.approved_at = new Date().toISOString();
+      saveRequestsData();
+      saveLocalData();
+
+      const note = `Approved & Handed over ${req.quantity} pcs of ${req.mpn} from ${req.target_owner} (${req.target_dept}) to ${req.requester_name} (${req.requester_dept})`;
+      logTransaction(req.mpn, req.target_dept, req.target_owner, "REQUEST_APPROVED", -req.quantity, note);
+
+      showToast(`Approved! ${req.quantity} pcs of ${req.mpn} handed over to ${req.requester_name}. Stock updated!`, "success");
+      renderRequests();
+      renderInventory();
+      renderTransactions();
+    }
+
+    async function markRequestReturned(reqId) {
+      const req = requestsData.find(r => r.id === reqId);
+      if (!req) return;
+
+      // Return components from requester back to provider
+      let comp = componentsData.find(c => c.mpn.toUpperCase() === req.mpn.toUpperCase());
+      if (comp) {
+        let requesterLoc = (comp.stock_locations || []).find(l => 
+          l.owner_person.toLowerCase() === req.requester_name.toLowerCase()
+        );
+        if (requesterLoc) {
+          requesterLoc.quantity = Math.max(0, requesterLoc.quantity - req.quantity);
+        }
+
+        let providerLoc = (comp.stock_locations || []).find(l => 
+          l.owner_person.toLowerCase() === req.target_owner.toLowerCase() &&
+          l.department.toLowerCase() === req.target_dept.toLowerCase()
+        );
+        if (providerLoc) {
+          providerLoc.quantity += req.quantity;
+        } else {
+          comp.stock_locations.push({
+            id: "s_" + Date.now(),
+            department: req.target_dept,
+            owner_person: req.target_owner,
+            storage_bin: req.storage_bin || "Main Drawer",
+            quantity: req.quantity
+          });
+        }
+      }
+
+      req.status = "COMPLETED";
+      req.returned_at = new Date().toISOString();
+      saveRequestsData();
+      saveLocalData();
+
+      const note = `Returned ${req.quantity} pcs of ${req.mpn} from ${req.requester_name} back to ${req.target_owner} (${req.target_dept})`;
+      logTransaction(req.mpn, req.target_dept, req.target_owner, "RETURNED", req.quantity, note);
+
+      showToast(`Marked as returned! ${req.quantity} pcs of ${req.mpn} restored to ${req.target_owner}.`, "success");
+      renderRequests();
+      renderInventory();
+      renderTransactions();
+    }
+
+    function declineRequest(reqId) {
+      const reason = prompt("Enter a brief reason for declining (e.g. Parts needed for another build):", "Components currently in active testing");
+      if (reason === null) return;
+
+      const req = requestsData.find(r => r.id === reqId);
+      if (!req) return;
+
+      req.status = "DECLINED";
+      req.decline_reason = reason;
+      req.declined_at = new Date().toISOString();
+      saveRequestsData();
+
+      showToast(`Request marked as declined.`, "info");
+      renderRequests();
+    }
+
+    function setRequestStatusFilter(status) {
+      currentReqFilter = status;
+      document.querySelectorAll(".req-filter-btn").forEach(btn => {
+        btn.className = "req-filter-btn px-2.5 py-1 rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300 transition";
+      });
+      const active = document.getElementById(`reqFilter-${status}`);
+      if (active) {
+        active.className = "req-filter-btn px-2.5 py-1 rounded-lg bg-slate-900 text-white transition";
+      }
+      renderRequests();
+    }
+
+    function renderRequests() {
+      const container = document.getElementById("activeRequestsContainer");
+      const historyTbody = document.getElementById("requestsHistoryTableBody");
+      const memberFilter = document.getElementById("reqMemberFilter")?.value || "ALL";
+
+      // Update counters
+      const pendingCount = requestsData.filter(r => r.status === "PENDING").length;
+      const loanCount = requestsData.filter(r => r.status === "LOAN_ACTIVE").length;
+      const doneCount = requestsData.filter(r => r.status === "COMPLETED" || r.status === "APPROVED").length;
+
+      document.getElementById("countReqAll").textContent = requestsData.length;
+      document.getElementById("countReqPending").textContent = pendingCount;
+      document.getElementById("countReqLoan").textContent = loanCount;
+      document.getElementById("countReqDone").textContent = doneCount;
+      updatePendingBadge();
+
+      // Active / Pending Queue filter
+      const activeList = requestsData.filter(r => {
+        const matchesMember = memberFilter === "ALL" || 
+          r.requester_name.toLowerCase() === memberFilter.toLowerCase() ||
+          r.target_owner.toLowerCase() === memberFilter.toLowerCase();
+        
+        const isQueueItem = r.status === "PENDING" || r.status === "LOAN_ACTIVE";
+        const matchesStatus = currentReqFilter === "ALL" || 
+          (currentReqFilter === "PENDING" && r.status === "PENDING") ||
+          (currentReqFilter === "LOAN_ACTIVE" && r.status === "LOAN_ACTIVE");
+
+        return matchesMember && (currentReqFilter === "ALL" ? isQueueItem : matchesStatus);
+      });
+
+      if (activeList.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-2 text-center py-8 bg-slate-50 border border-slate-200 rounded-xl text-slate-400">
+            <span class="text-2xl block mb-1">🎉</span>
+            <p class="font-medium text-slate-600">No active pending requests or active loans right now!</p>
+            <p class="text-xs text-slate-400 mt-0.5">Need a component from a colleague? Click "+ New Component Request".</p>
+          </div>
+        `;
+      } else {
+        container.innerHTML = activeList.map(r => {
+          const isPending = r.status === "PENDING";
+          const isLoan = r.status === "LOAN_ACTIVE";
+          const typeBadge = r.request_type === "LOAN"
+            ? `<span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded">🔄 Temporary Loan</span>`
+            : r.request_type === "EXCHANGE"
+            ? `<span class="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded">⚖️ Component Swap</span>`
+            : `<span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">📦 Permanent Transfer</span>`;
+
+          const statusBadge = isPending
+            ? `<span class="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span> Pending Approval</span>`
+            : `<span class="bg-blue-100 text-blue-900 border border-blue-300 text-[10px] font-bold px-2 py-0.5 rounded-full">🔄 Currently on Loan</span>`;
+
+          return `
+            <div class="bg-white border-2 ${isPending ? 'border-amber-200 shadow-sm' : 'border-blue-200'} rounded-xl p-4 space-y-3">
+              <!-- Top Row -->
+              <div class="flex justify-between items-start">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono font-bold text-slate-900 text-base">${r.mpn}</span>
+                    <span class="font-mono font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded text-xs">${r.quantity} pcs</span>
+                  </div>
+                  <div class="flex items-center gap-1.5 mt-1">
+                    ${typeBadge}
+                    ${statusBadge}
+                  </div>
+                </div>
+                <span class="text-[10px] text-slate-400 font-mono">${new Date(r.created_at).toLocaleDateString()}</span>
+              </div>
+
+              <!-- Requester to Target Flow -->
+              <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex items-center justify-between text-xs">
+                <div>
+                  <span class="text-[10px] uppercase font-bold text-slate-400 block">Requester:</span>
+                  <strong>👤 ${r.requester_name}</strong>
+                  <span class="text-slate-500 font-normal">(${r.requester_dept})</span>
+                </div>
+                <span class="text-slate-400 text-base">➡️</span>
+                <div class="text-right">
+                  <span class="text-[10px] uppercase font-bold text-slate-400 block">Current Holder:</span>
+                  <strong>👤 ${r.target_owner}</strong>
+                  <span class="text-slate-500 font-normal">(${r.target_dept})</span>
+                </div>
+              </div>
+
+              <!-- Reason & Offered swap -->
+              <p class="text-xs text-slate-600 bg-slate-50/50 p-2 rounded border border-slate-100">
+                <strong>Purpose:</strong> ${r.reason}
+              </p>
+              ${r.offered_component ? `
+                <div class="text-xs text-purple-900 bg-purple-50 p-2 rounded border border-purple-200">
+                  <strong>Offered in return:</strong> ${r.offered_component}
+                </div>
+              ` : ''}
+
+              <!-- Action Buttons -->
+              <div class="pt-2 border-t border-slate-100 flex justify-end gap-2">
+                ${isPending ? `
+                  <button onclick="declineRequest('${r.id}')" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">
+                    Decline
+                  </button>
+                  <button onclick="approveRequest('${r.id}')" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition shadow flex items-center gap-1">
+                    <span>✓</span>
+                    <span>Approve & Hand Over (${r.quantity} pcs)</span>
+                  </button>
+                ` : isLoan ? `
+                  <button onclick="markRequestReturned('${r.id}')" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition shadow flex items-center gap-1">
+                    <span>🔁</span>
+                    <span>Mark as Returned to ${r.target_owner}</span>
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      // History Table
+      const historyList = requestsData.filter(r => {
+        const matchesMember = memberFilter === "ALL" || 
+          r.requester_name.toLowerCase() === memberFilter.toLowerCase() ||
+          r.target_owner.toLowerCase() === memberFilter.toLowerCase();
+        return matchesMember;
+      });
+
+      historyTbody.innerHTML = historyList.map(r => {
+        const statusClass = r.status === "COMPLETED" || r.status === "APPROVED" 
+          ? "bg-emerald-100 text-emerald-800"
+          : r.status === "LOAN_ACTIVE"
+          ? "bg-blue-100 text-blue-800"
+          : r.status === "DECLINED"
+          ? "bg-red-100 text-red-800"
+          : "bg-amber-100 text-amber-800";
+
+        return `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-2.5 px-3 font-mono text-slate-500 text-[11px]">${new Date(r.created_at).toLocaleDateString()}</td>
+            <td class="py-2.5 px-3 font-mono font-bold text-slate-800">${r.mpn}</td>
+            <td class="py-2.5 px-3 font-mono font-bold text-indigo-700">${r.quantity} pcs</td>
+            <td class="py-2.5 px-3 font-medium">👤 ${r.requester_name} <span class="text-slate-400">(${r.requester_dept})</span></td>
+            <td class="py-2.5 px-3 font-medium">👤 ${r.target_owner} <span class="text-slate-400">(${r.target_dept})</span></td>
+            <td class="py-2.5 px-3 text-slate-600">${r.request_type}</td>
+            <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${statusClass}">${r.status}</span></td>
+            <td class="py-2.5 px-3 text-slate-600 max-w-xs truncate" title="${r.reason} ${r.offered_component ? 'Swap: ' + r.offered_component : ''}">
+              ${r.reason} ${r.offered_component ? '• Swap: ' + r.offered_component : ''}
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    async function logTransaction(mpn, dept, engineer, action, qtyChanged, note) {
+      if (isConnectedToSupabase) {
+        try {
+          await supabaseClient.from("transactions").insert({
+            component_mpn: mpn,
+            department: dept,
+            engineer_name: engineer,
+            action_type: action,
+            qty_changed: qtyChanged,
+            project_note: note
+          });
+        } catch (e) {
+          console.warn("Could not insert transaction to Supabase", e);
+        }
+      }
+      transactionsData.unshift({
+        id: "tx_" + Date.now(),
+        component_mpn: mpn,
+        department: dept,
+        engineer_name: engineer,
+        action_type: action,
+        qty_changed: qtyChanged,
+        project_note: note,
+        created_at: new Date().toISOString()
+      });
+      saveLocalData();
+    }
+
+    // 7. DUPLICATE ANALYSIS & AVOID MONEY WASTE
     function analyzeDuplicates() {
-      // Find components held by more than 1 department or more than 1 member
       const duplicateList = [];
       let totalDuplicatePieces = 0;
 
       componentsData.forEach(c => {
         const locs = c.stock_locations || [];
-        // Check if held in multiple departments OR multiple members
         const depts = new Set(locs.map(l => l.department));
         const owners = new Set(locs.map(l => l.owner_person));
         if (locs.length > 1 && (depts.size > 1 || owners.size > 1)) {
@@ -1258,7 +1944,7 @@
       renderInventory();
     }
 
-    // 7. FILTER MANAGEMENT
+    // 8. FILTER MANAGEMENT
     function setDeptFilter(dept) {
       currentDeptFilter = dept;
       document.querySelectorAll(".dept-pill").forEach(p => {
@@ -1317,7 +2003,7 @@
       renderInventory();
     }
 
-    // 8. RENDER INVENTORY TABLE & CARDS
+    // 9. RENDER INVENTORY TABLE & CARDS
     function renderInventory() {
       const query = document.getElementById("searchInput").value.trim().toLowerCase();
       const clearBtn = document.getElementById("clearSearchBtn");
@@ -1326,7 +2012,6 @@
       const memberFilter = document.getElementById("memberFilter").value;
       const catFilter = document.getElementById("catFilter").value;
 
-      // Update Department KPI Statistics
       let autoTotal = 0, batTotal = 0, chgTotal = 0, grandTotal = 0;
       const autoHolders = new Set(), batHolders = new Set(), chgHolders = new Set();
 
@@ -1363,18 +2048,15 @@
       document.getElementById("pillCountChg").textContent = chgTotal.toLocaleString();
       document.getElementById("badgeTabInventoryCount").textContent = componentsData.length;
 
-      // Filter logic
       const filtered = componentsData.filter(c => {
         const locs = c.stock_locations || [];
         
-        // Overlap / duplicate check
         if (onlyShowDuplicates) {
           const depts = new Set(locs.map(l => l.department));
           const owners = new Set(locs.map(l => l.owner_person));
           if (locs.length <= 1 || (depts.size <= 1 && owners.size <= 1)) return false;
         }
 
-        // Full text match
         const matchesQuery = !query ||
           c.mpn.toLowerCase().includes(query) ||
           (c.lcsc_pn && c.lcsc_pn.toLowerCase().includes(query)) ||
@@ -1387,13 +2069,8 @@
             (s.department && s.department.toLowerCase().includes(query))
           );
 
-        // Category filter
         const matchesCat = catFilter === "ALL" || c.category === catFilter;
-
-        // Department filter
         const matchesDept = currentDeptFilter === "ALL" || locs.some(s => s.department === currentDeptFilter && s.quantity > 0);
-
-        // Member filter
         const matchesMember = memberFilter === "ALL" || locs.some(s => s.owner_person && s.owner_person.toLowerCase() === memberFilter.toLowerCase() && s.quantity > 0);
 
         return matchesQuery && matchesCat && matchesDept && matchesMember;
@@ -1446,7 +2123,6 @@
           const locs = c.stock_locations || [];
           const totalQty = locs.reduce((sum, s) => sum + s.quantity, 0);
 
-          // Department badges
           const badgesHtml = locs.map(s => {
             const deptClass = `dept-badge-${s.department}`;
             const deptIcon = s.department === "Automotive" ? "🚗" : s.department === "Battery" ? "🔋" : s.department === "Chargenet" ? "⚡" : "🏢";
@@ -1455,10 +2131,15 @@
                 <span>${deptIcon} <strong>${s.department}:</strong> ${s.quantity} pcs</span>
                 <span class="text-slate-500 font-normal">(${s.storage_bin} • 👤 <strong>${s.owner_person}</strong>)</span>
                 <div class="flex items-center gap-1 ml-1.5 border-l border-slate-300 pl-1.5">
+                  <button onclick="openRequestModal('${c.mpn}', '${s.owner_person}', '${s.department}', '${s.storage_bin}', ${s.quantity})"
+                    title="Request, borrow, or swap from colleague"
+                    class="bg-purple-600 hover:bg-purple-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">
+                    🤝 Request
+                  </button>
                   <button onclick="openTakeModal('${s.id}', '${c.mpn}', '${s.department}', ${s.quantity}, '${s.storage_bin}', '${s.owner_person}')"
-                    title="Borrow or use pieces"
+                    title="Borrow or deduct pieces"
                     class="bg-white hover:bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-300 text-[10px] font-bold">
-                    Borrow
+                    Use
                   </button>
                   <button onclick="openTransferModal('${s.id}', '${c.mpn}', '${s.department}', ${s.quantity}, '${s.storage_bin}', '${s.owner_person}')"
                     title="Transfer to another department or member"
@@ -1515,10 +2196,16 @@
 
               <!-- Actions -->
               <td class="py-3 px-4 text-center whitespace-nowrap">
-                <button onclick="prefillRestock('${c.mpn}', '${c.category}', '${c.lcsc_pn || ''}', '${c.mouser_pn || ''}', '${c.package || ''}', '${(c.description || '').replace(/'/g, "\\'")}')"
-                  class="text-xs text-blue-600 hover:text-blue-800 font-semibold border border-blue-200 bg-blue-50/60 hover:bg-blue-100/70 px-2.5 py-1 rounded-lg transition shadow-2xs">
-                  + Add Stock
-                </button>
+                <div class="flex items-center justify-center gap-1.5">
+                  <button onclick="openRequestModal('${c.mpn}', '${locs[0]?.owner_person || ''}', '${locs[0]?.department || ''}', '${locs[0]?.storage_bin || ''}', ${locs[0]?.quantity || 1})"
+                    class="text-xs text-purple-700 hover:text-purple-900 font-semibold border border-purple-200 bg-purple-50/60 hover:bg-purple-100 px-2.5 py-1 rounded-lg transition shadow-2xs">
+                    🤝 Request
+                  </button>
+                  <button onclick="prefillRestock('${c.mpn}', '${c.category}', '${c.lcsc_pn || ''}', '${c.mouser_pn || ''}', '${c.package || ''}', '${(c.description || '').replace(/'/g, "\\'")}')"
+                    class="text-xs text-blue-600 hover:text-blue-800 font-semibold border border-blue-200 bg-blue-50/60 hover:bg-blue-100 px-2 py-1 rounded-lg transition shadow-2xs">
+                    + Add
+                  </button>
+                </div>
               </td>
             </tr>
           `;
@@ -1556,10 +2243,16 @@
                       <strong>${s.department}</strong>: ${s.quantity} pcs
                       <div class="text-[10px] opacity-80">${s.storage_bin} • 👤 ${s.owner_person}</div>
                     </div>
-                    <button onclick="openTakeModal('${s.id}', '${c.mpn}', '${s.department}', ${s.quantity}, '${s.storage_bin}', '${s.owner_person}')"
-                      class="bg-white hover:bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold border">
-                      Borrow
-                    </button>
+                    <div class="flex items-center gap-1">
+                      <button onclick="openRequestModal('${c.mpn}', '${s.owner_person}', '${s.department}', '${s.storage_bin}', ${s.quantity})"
+                        class="bg-purple-600 text-white hover:bg-purple-700 px-2 py-0.5 rounded text-[10px] font-bold">
+                        Request
+                      </button>
+                      <button onclick="openTakeModal('${s.id}', '${c.mpn}', '${s.department}', ${s.quantity}, '${s.storage_bin}', '${s.owner_person}')"
+                        class="bg-white hover:bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold border">
+                        Use
+                      </button>
+                    </div>
                   </div>
                 `).join("") || '<p class="text-xs text-red-500">No stock available</p>'}
               </div>
@@ -1580,12 +2273,11 @@
       }
     }
 
-    // 9. MEMBER DIRECTORY VIEW ("Who has what?")
+    // 10. MEMBER DIRECTORY VIEW ("Who has what?")
     function renderMemberDirectory() {
       const container = document.getElementById("membersDirectoryContainer");
       const search = (document.getElementById("memberSearchInput")?.value || "").trim().toLowerCase();
       
-      // Group all stock by member
       const memberMap = {};
 
       componentsData.forEach(c => {
@@ -1647,7 +2339,6 @@
               </div>
             </div>
 
-            <!-- List of parts held -->
             <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
               ${m.items.map(i => `
                 <div class="bg-white p-2 rounded-lg border border-slate-200 flex justify-between items-center text-xs">
@@ -1655,7 +2346,13 @@
                     <span class="font-mono font-bold text-slate-800">${i.mpn}</span>
                     <div class="text-[10px] text-slate-500 font-mono">📍 ${i.storage_bin}</div>
                   </div>
-                  <span class="font-mono font-bold text-emerald-700">${i.quantity} pcs</span>
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono font-bold text-emerald-700">${i.quantity} pcs</span>
+                    <button onclick="openRequestModal('${i.mpn}', '${m.name}', '${i.department}', '${i.storage_bin}', ${i.quantity})"
+                      class="text-[10px] text-purple-700 font-bold bg-purple-50 hover:bg-purple-100 border border-purple-200 px-1.5 py-0.5 rounded">
+                      Request
+                    </button>
+                  </div>
                 </div>
               `).join("")}
             </div>
@@ -1674,7 +2371,7 @@
       renderInventory();
     }
 
-    // 10. PRE-ORDER DUPLICATE CHECKER LOGIC (STOP WASTING MONEY!)
+    // 11. PRE-ORDER DUPLICATE CHECKER LOGIC
     function runBomCheck() {
       const raw = document.getElementById("bomInput").value;
       const tokens = raw.split(/[\n,;\t]+/)
@@ -1694,7 +2391,6 @@
       let totalPiecesAvailable = 0;
 
       const html = tokens.map(token => {
-        // Search in master components
         const match = componentsData.find(c =>
           c.mpn.toUpperCase() === token ||
           (c.lcsc_pn && c.lcsc_pn.toUpperCase() === token) ||
@@ -1715,6 +2411,8 @@
                 <strong>${s.department}:</strong> ${s.quantity} pcs (👤 <strong>${s.owner_person}</strong> • 📍 ${s.storage_bin})
               </span>
             `).join("");
+
+            const firstHolder = locs[0];
 
             return `
               <div class="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl space-y-2">
@@ -1739,13 +2437,20 @@
                   <strong>Where to find:</strong> ${breakdown}
                 </div>
 
-                <div class="pt-2 border-t border-emerald-200/60 flex justify-between items-center">
-                  <span class="text-[11px] text-emerald-800 font-semibold">💡 Action: Avoid purchasing! Borrow from ${locs.map(l => l.owner_person).join(", ")}.</span>
-                  <button onclick="copyBorrowMsg('${match.mpn}', '${locs[0]?.owner_person || ''}', '${locs[0]?.department || ''}')"
-                    class="text-xs bg-emerald-700 hover:bg-emerald-600 text-white font-semibold px-2.5 py-1 rounded-lg transition shadow-xs flex items-center gap-1">
-                    <span>📋</span>
-                    <span>Copy Request Message</span>
-                  </button>
+                <div class="pt-2 border-t border-emerald-200/60 flex flex-wrap justify-between items-center gap-2">
+                  <span class="text-[11px] text-emerald-800 font-semibold">💡 Avoid purchasing! Borrow or swap with colleagues.</span>
+                  <div class="flex gap-2">
+                    <button onclick="openRequestModal('${match.mpn}', '${firstHolder?.owner_person || ''}', '${firstHolder?.department || ''}', '${firstHolder?.storage_bin || ''}', ${firstHolder?.quantity || 1})"
+                      class="text-xs bg-purple-600 hover:bg-purple-500 text-white font-semibold px-2.5 py-1 rounded-lg transition shadow-xs flex items-center gap-1">
+                      <span>🤝</span>
+                      <span>Request in System</span>
+                    </button>
+                    <button onclick="copyBorrowMsg('${match.mpn}', '${firstHolder?.owner_person || ''}', '${firstHolder?.department || ''}')"
+                      class="text-xs bg-emerald-700 hover:bg-emerald-600 text-white font-semibold px-2.5 py-1 rounded-lg transition shadow-xs flex items-center gap-1">
+                      <span>📋</span>
+                      <span>Copy Chat Message</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             `;
@@ -1821,7 +2526,7 @@
       reader.readAsArrayBuffer(file);
     }
 
-    // 11. PARSE LCSC AND MOUSER BOM FILES
+    // 12. PARSE LCSC AND MOUSER BOM FILES
     function previewBomFile(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -1847,10 +2552,7 @@
       parsedBomItems = [];
       let detectedType = "Unknown BOM Format";
 
-      // 1. Detect LCSC Quotation
       const lcscHeaderRowIndex = rows.findIndex(r => String(r[0]).trim() === "LCSC#" && !r.includes("LCSC Matching Results"));
-
-      // 2. Detect Mouser BOM
       const mouserHeaderRowIndex = rows.findIndex(r => r.some(cell => String(cell).includes("Mouser Part Number") || String(cell).includes("Mfr Part Number")));
 
       if (lcscHeaderRowIndex !== -1 && rows[lcscHeaderRowIndex].length >= 10) {
@@ -1926,7 +2628,6 @@
           });
         }
       } else {
-        // Generic fallback: Try to find any row containing Part Number
         for (let i = 1; i < rows.length; i++) {
           const r = rows[i];
           const mpn = String(r[0] || r[1] || "").trim().toUpperCase();
@@ -1973,7 +2674,7 @@
       }
     }
 
-    // 12. COMMIT BOM TO DATABASE
+    // 13. COMMIT BOM TO DATABASE
     async function commitBomToDatabase() {
       const department = document.getElementById("bom_dept").value;
       const owner_person = document.getElementById("bom_owner").value.trim();
@@ -2042,7 +2743,6 @@
             console.error("Error inserting part", e);
           }
         } else {
-          // Local storage fallback
           let comp = componentsData.find(c => c.mpn.toUpperCase() === item.mpn.toUpperCase());
           if (!comp) {
             comp = {
@@ -2081,31 +2781,14 @@
         }
       }
 
-      // Log Transaction
       const summaryNote = `Imported ${parsedBomItems.length} lines (${customBin || parsedBomItems[0]?.project_bin || 'BOM'})`;
       const totalPcs = parsedBomItems.reduce((acc, i) => acc + i.quantity, 0);
 
+      logTransaction(`BOM (${parsedBomItems.length} parts)`, department, owner_person, "BOM_UPLOAD", totalPcs, summaryNote);
+
       if (isConnectedToSupabase) {
-        await supabaseClient.from("transactions").insert({
-          component_mpn: `BOM (${parsedBomItems.length} parts)`,
-          department,
-          engineer_name: owner_person,
-          action_type: "BOM_UPLOAD",
-          qty_changed: totalPcs,
-          project_note: summaryNote
-        });
         await loadInventory();
       } else {
-        transactionsData.unshift({
-          id: "tx_" + Date.now(),
-          component_mpn: `BOM (${parsedBomItems.length} parts)`,
-          department,
-          engineer_name: owner_person,
-          action_type: "BOM_UPLOAD",
-          qty_changed: totalPcs,
-          project_note: summaryNote,
-          created_at: new Date().toISOString()
-        });
         saveLocalData();
         updateMemberDropdowns();
         renderInventory();
@@ -2120,7 +2803,7 @@
       closeModal("uploadBomModal");
     }
 
-    // 13. SINGLE PART ADD HANDLER
+    // 14. SINGLE PART ADD HANDLER
     async function handleAddPart(e) {
       e.preventDefault();
       const mpn = document.getElementById("f_mpn").value.trim().toUpperCase();
@@ -2146,11 +2829,7 @@
           component_id: existingComp.id, department, owner_person, storage_bin, quantity
         });
 
-        await supabaseClient.from("transactions").insert({
-          component_mpn: mpn, department, engineer_name: owner_person,
-          action_type: "ADD", qty_changed: quantity, project_note: `Added to ${storage_bin} by ${owner_person}`
-        });
-
+        logTransaction(mpn, department, owner_person, "ADD", quantity, `Added to ${storage_bin} by ${owner_person}`);
         await loadInventory();
       } else {
         let comp = componentsData.find(c => c.mpn === mpn);
@@ -2160,17 +2839,7 @@
         }
         comp.stock_locations.push({ id: "s_" + Date.now(), department, owner_person, storage_bin, quantity });
 
-        transactionsData.unshift({
-          id: "tx_" + Date.now(),
-          component_mpn: mpn,
-          department,
-          engineer_name: owner_person,
-          action_type: "ADD",
-          qty_changed: quantity,
-          project_note: `Added to ${storage_bin}`,
-          created_at: new Date().toISOString()
-        });
-
+        logTransaction(mpn, department, owner_person, "ADD", quantity, `Added to ${storage_bin}`);
         saveLocalData();
         updateMemberDropdowns();
         renderInventory();
@@ -2184,7 +2853,7 @@
       closeModal("addPartModal");
     }
 
-    // 14. BORROW / TAKE COMPONENT HANDLER
+    // 15. BORROW / TAKE COMPONENT HANDLER
     function openTakeModal(stockId, mpn, dept, currentQty, bin, owner) {
       document.getElementById("t_stock_id").value = stockId;
       document.getElementById("t_mpn").value = mpn;
@@ -2212,31 +2881,14 @@
         const newQty = Math.max(0, loc.quantity - qtyToTake);
         await supabaseClient.from("stock_locations").update({ quantity: newQty }).eq("id", stockId);
         
-        await supabaseClient.from("transactions").insert({
-          component_mpn: mpn,
-          department: borrowerDept,
-          engineer_name: engineer,
-          action_type: "TAKE",
-          qty_changed: -qtyToTake,
-          project_note: `${note} (Borrowed from ${loc.department} - ${loc.owner_person})`
-        });
-
+        logTransaction(mpn, borrowerDept, engineer, "TAKE", -qtyToTake, `${note} (Borrowed from ${loc.department} - ${loc.owner_person})`);
         await loadInventory();
       } else {
         componentsData.forEach(c => {
           const loc = (c.stock_locations || []).find(s => s.id === stockId);
           if (loc) {
             loc.quantity = Math.max(0, loc.quantity - qtyToTake);
-            transactionsData.unshift({
-              id: "tx_" + Date.now(),
-              component_mpn: mpn,
-              department: borrowerDept,
-              engineer_name: engineer,
-              action_type: "TAKE",
-              qty_changed: -qtyToTake,
-              project_note: `${note} (Borrowed from ${loc.department} - ${loc.owner_person})`,
-              created_at: new Date().toISOString()
-            });
+            logTransaction(mpn, borrowerDept, engineer, "TAKE", -qtyToTake, `${note} (Borrowed from ${loc.department} - ${loc.owner_person})`);
           }
         });
 
@@ -2252,7 +2904,7 @@
       closeModal("takePartModal");
     }
 
-    // 15. TRANSFER COMPONENT HANDLER
+    // 16. TRANSFER COMPONENT HANDLER
     function openTransferModal(stockId, mpn, dept, currentQty, bin, owner) {
       document.getElementById("tr_stock_id").value = stockId;
       document.getElementById("tr_mpn").value = mpn;
@@ -2273,12 +2925,10 @@
       const toBin = document.getElementById("tr_to_bin").value.trim();
       const note = document.getElementById("tr_note").value.trim();
 
-      // Deduct from source, add to target
       if (isConnectedToSupabase) {
         const { data: sourceLoc } = await supabaseClient.from("stock_locations").select("*").eq("id", stockId).single();
         if (sourceLoc) {
           await supabaseClient.from("stock_locations").update({ quantity: Math.max(0, sourceLoc.quantity - qty) }).eq("id", stockId);
-          
           await supabaseClient.from("stock_locations").insert({
             component_id: sourceLoc.component_id,
             department: toDept,
@@ -2287,14 +2937,7 @@
             quantity: qty
           });
 
-          await supabaseClient.from("transactions").insert({
-            component_mpn: mpn,
-            department: toDept,
-            engineer_name: toOwner,
-            action_type: "TRANSFER",
-            qty_changed: qty,
-            project_note: `Transferred from ${sourceLoc.department} (${sourceLoc.owner_person}) to ${toDept} (${toOwner}) — ${note}`
-          });
+          logTransaction(mpn, toDept, toOwner, "TRANSFER", qty, `Transferred from ${sourceLoc.department} (${sourceLoc.owner_person}) to ${toDept} (${toOwner}) — ${note}`);
           await loadInventory();
         }
       } else {
@@ -2327,17 +2970,7 @@
             });
           }
 
-          transactionsData.unshift({
-            id: "tx_" + Date.now(),
-            component_mpn: mpn,
-            department: toDept,
-            engineer_name: toOwner,
-            action_type: "TRANSFER",
-            qty_changed: qty,
-            project_note: `Transferred from ${sourceLoc.department} (${sourceLoc.owner_person}) to ${toDept} (${toOwner}) — ${note}`,
-            created_at: new Date().toISOString()
-          });
-
+          logTransaction(mpn, toDept, toOwner, "TRANSFER", qty, `Transferred from ${sourceLoc.department} (${sourceLoc.owner_person}) to ${toDept} (${toOwner}) — ${note}`);
           saveLocalData();
           updateMemberDropdowns();
           renderInventory();
@@ -2363,7 +2996,7 @@
       openModal("addPartModal");
     }
 
-    // 16. TRANSACTIONS LOG RENDERING
+    // 17. TRANSACTIONS LOG RENDERING
     function renderTransactions() {
       const tbody = document.getElementById("txFullTableBody");
       const search = (document.getElementById("txSearchInput")?.value || "").trim().toLowerCase();
@@ -2409,7 +3042,7 @@
       }).join("");
     }
 
-    // 17. EXPORT TO EXCEL
+    // 18. EXPORT TO EXCEL
     function exportInventoryToExcel() {
       const rows = [];
       componentsData.forEach(c => {
@@ -2444,7 +3077,7 @@
       showToast("Downloaded audit log spreadsheet!", "success");
     }
 
-    // 18. TAB & MODAL HELPERS
+    // 19. TAB & MODAL HELPERS
     function switchTab(tabId) {
       document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
       document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -2463,6 +3096,7 @@
 
       if (tabId === "members") renderMemberDirectory();
       if (tabId === "activity") renderTransactions();
+      if (tabId === "requests") renderRequests();
     }
 
     function openModal(id) {
@@ -2487,6 +3121,4 @@
     });
   </script>
 </body>
-</html>
-
 </html>
