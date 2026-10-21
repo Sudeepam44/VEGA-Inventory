@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VEGA Component Hub — Automotive | Battery | Chargenet</title>
   
-  <!-- Google Fonts: Inter -->
+  <!-- Google Fonts: Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -122,7 +122,7 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-lg font-bold tracking-tight text-white">VEGA Component Hub</h1>
-            <span class="text-[10px] font-semibold uppercase tracking-wider bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700">v2.8</span>
+            <span class="text-[10px] font-semibold uppercase tracking-wider bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700">v2.9 Cloud</span>
           </div>
           <p class="text-xs text-slate-400">Cross-Department PCB & Component Sharing — <span class="text-blue-400 font-medium">Automotive</span> • <span class="text-emerald-400 font-medium">Battery</span> • <span class="text-amber-400 font-medium">Chargenet</span></p>
         </div>
@@ -613,6 +613,7 @@
           <select id="txActionFilter" onchange="renderTransactions()" class="px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white text-slate-700">
             <option value="ALL">All Actions</option>
             <option value="REQUEST_APPROVED">Approved Requests</option>
+            <option value="RETURNED">Returned Loans</option>
             <option value="TAKE">Borrowed / Used</option>
             <option value="ADD">Added / Restocked</option>
             <option value="TRANSFER">Transferred</option>
@@ -1092,7 +1093,7 @@
     let onlyShowDuplicates = false;
     let currentReqFilter = "ALL";
 
-    const KNOWN_MEMBERS = ["Sudeepa", "Kasun", "Nuwan", "Chathura", "Harsha", "Shared Lab"];
+    const KNOWN_MEMBERS = ["Sudeepa", "Kalana", "Savindu", "Asfaq", "Vinura", "Shared Lab"];
 
     // 2. TOAST NOTIFICATIONS
     function showToast(message, type = "info", durationMs = 4000) {
@@ -1143,7 +1144,7 @@
       document.getElementById("f_category").value = cat;
     }
 
-    // 4. DATA INITIALIZATION & LOADING
+    // 4. DATA INITIALIZATION & LOADING (SUPABASE + FALLBACK)
     async function loadInventory() {
       const badge = document.getElementById("dbStatusBadge");
       badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span><span>Connecting...</span>`;
@@ -1170,7 +1171,34 @@
         fallbackToLocalStorage(badge);
       }
 
-      // Load requests data from local storage
+      // Load component_requests from Supabase if connected, otherwise LocalStorage
+      if (isConnectedToSupabase) {
+        try {
+          const { data: reqs, error: errReq } = await supabaseClient
+            .from("component_requests")
+            .select("*")
+            .order("created_at", { ascending: false });
+          if (!errReq && reqs) {
+            requestsData = reqs;
+          } else {
+            loadLocalRequestsFallback();
+          }
+        } catch (e) {
+          loadLocalRequestsFallback();
+        }
+      } else {
+        loadLocalRequestsFallback();
+      }
+
+      updateMemberDropdowns();
+      renderInventory();
+      renderTransactions();
+      renderMemberDirectory();
+      renderRequests();
+      analyzeDuplicates();
+    }
+
+    function loadLocalRequestsFallback() {
       const savedRequests = localStorage.getItem("vega_requests_v3");
       if (savedRequests) {
         try {
@@ -1181,13 +1209,6 @@
       } else {
         initDefaultRequests();
       }
-
-      updateMemberDropdowns();
-      renderInventory();
-      renderTransactions();
-      renderMemberDirectory();
-      renderRequests();
-      analyzeDuplicates();
     }
 
     function fallbackToLocalStorage(badge) {
@@ -1224,7 +1245,7 @@
           request_type: "LOAN",
           offered_component: "",
           reason: "Urgent prototype testing for ETX OBD-II board bring-up. Will return when LCSC shipment arrives.",
-          status: "PENDING", // PENDING, APPROVED, RETURNED, DECLINED
+          status: "PENDING",
           created_at: new Date(Date.now() - 3600000 * 3).toISOString()
         },
         {
@@ -1239,7 +1260,7 @@
           request_type: "EXCHANGE",
           offered_component: "50 pcs of 10uF 50V MLCC 0805",
           reason: "Urgent assembly of AC Charger pilot units. Exchanging with 10uF 50V caps.",
-          status: "APPROVED",
+          status: "COMPLETED",
           created_at: new Date(Date.now() - 3600000 * 20).toISOString()
         }
       ];
@@ -1452,14 +1473,16 @@
       // Populate Member filter in requests tab
       const reqMemberSelect = document.getElementById("reqMemberFilter");
       if (reqMemberSelect) {
+        const currentReqMem = reqMemberSelect.value || "ALL";
         reqMemberSelect.innerHTML = `<option value="ALL">Show requests for all members</option>`;
         Array.from(allMembers).sort().forEach(m => {
           reqMemberSelect.innerHTML += `<option value="${m}">Involving 👤 ${m}</option>`;
         });
+        reqMemberSelect.value = currentReqMem;
       }
     }
 
-    // 6. COMPONENT REQUESTS & EXCHANGES WORKFLOW
+    // 6. COMPONENT REQUESTS & EXCHANGES WORKFLOW (CLOUD SYNCED)
     function openRequestModal(prefillMpn = "", targetOwner = "", targetDept = "", bin = "", maxQty = 1) {
       document.getElementById("requestPartForm").reset();
       const mpnInput = document.getElementById("req_mpn");
@@ -1539,7 +1562,7 @@
       }
     }
 
-    function handleCreateRequest(e) {
+    async function handleCreateRequest(e) {
       e.preventDefault();
       const mpn = document.getElementById("req_mpn").value.trim().toUpperCase();
       const holderVal = document.getElementById("req_target_holder").value;
@@ -1560,8 +1583,7 @@
       const requesterDept = document.getElementById("req_requester_dept").value;
       const reason = document.getElementById("req_reason").value.trim();
 
-      const newRequest = {
-        id: "req_" + Date.now(),
+      const newRequestPayload = {
         mpn,
         requester_name: requester,
         requester_dept: requesterDept,
@@ -1572,131 +1594,245 @@
         request_type: reqType,
         offered_component: reqType === "EXCHANGE" ? offeredComp : "",
         reason,
-        status: "PENDING",
-        created_at: new Date().toISOString()
+        status: "PENDING"
       };
 
-      requestsData.unshift(newRequest);
-      saveRequestsData();
+      if (isConnectedToSupabase) {
+        const { error } = await supabaseClient.from("component_requests").insert(newRequestPayload);
+        if (error) {
+          showToast("Error saving request to cloud: " + error.message, "error");
+          return;
+        }
+      } else {
+        requestsData.unshift({ id: "req_" + Date.now(), ...newRequestPayload, created_at: new Date().toISOString() });
+        saveRequestsData();
+      }
 
-      // Log in transactions for Supabase/Audit trail
       const auditNote = `Requested ${qty} pcs of ${mpn} from ${targetOwner} (${targetDept}) for ${reason}`;
-      logTransaction(mpn, requesterDept, requester, "REQUEST_CREATED", 0, auditNote);
+      await logTransaction(mpn, requesterDept, requester, "REQUEST_CREATED", 0, auditNote);
+
+      if (isConnectedToSupabase) {
+        await loadInventory();
+      } else {
+        renderRequests();
+        renderTransactions();
+      }
 
       showToast(`Request sent to ${targetOwner}! They can now approve and hand over the component.`, "success");
       closeModal("requestPartModal");
       switchTab("requests");
-      renderRequests();
     }
 
     async function approveRequest(reqId) {
       const req = requestsData.find(r => r.id === reqId);
       if (!req) return;
 
-      // Deduct from provider, give to requester
-      let comp = componentsData.find(c => c.mpn.toUpperCase() === req.mpn.toUpperCase());
-      if (comp) {
-        let sourceLoc = (comp.stock_locations || []).find(l => 
-          l.owner_person.toLowerCase() === req.target_owner.toLowerCase() && 
-          l.department.toLowerCase() === req.target_dept.toLowerCase()
-        );
+      const newStatus = req.request_type === "LOAN" ? "LOAN_ACTIVE" : "COMPLETED";
+      const approvedAt = new Date().toISOString();
 
-        if (sourceLoc) {
-          sourceLoc.quantity = Math.max(0, sourceLoc.quantity - req.quantity);
+      if (isConnectedToSupabase) {
+        const { data: comp } = await supabaseClient.from("components").select("*").eq("mpn", req.mpn).maybeSingle();
+        if (comp) {
+          // Deduct from provider
+          const { data: sourceLocs } = await supabaseClient.from("stock_locations")
+            .select("*")
+            .eq("component_id", comp.id)
+            .ilike("owner_person", req.target_owner)
+            .eq("department", req.target_dept);
+
+          if (sourceLocs && sourceLocs.length > 0) {
+            const sourceLoc = sourceLocs[0];
+            await supabaseClient.from("stock_locations")
+              .update({ quantity: Math.max(0, sourceLoc.quantity - req.quantity) })
+              .eq("id", sourceLoc.id);
+          }
+
+          // Add to requester
+          const { data: targetLocs } = await supabaseClient.from("stock_locations")
+            .select("*")
+            .eq("component_id", comp.id)
+            .ilike("owner_person", req.requester_name)
+            .eq("department", req.requester_dept);
+
+          if (targetLocs && targetLocs.length > 0) {
+            const targetLoc = targetLocs[0];
+            await supabaseClient.from("stock_locations")
+              .update({ quantity: targetLoc.quantity + req.quantity })
+              .eq("id", targetLoc.id);
+          } else {
+            await supabaseClient.from("stock_locations").insert({
+              component_id: comp.id,
+              department: req.requester_dept,
+              owner_person: req.requester_name,
+              storage_bin: "Received from " + req.target_owner,
+              quantity: req.quantity
+            });
+          }
         }
 
-        // Add to requester
-        let targetLoc = (comp.stock_locations || []).find(l =>
-          l.owner_person.toLowerCase() === req.requester_name.toLowerCase() &&
-          l.department.toLowerCase() === req.requester_dept.toLowerCase()
-        );
+        await supabaseClient.from("component_requests")
+          .update({ status: newStatus, approved_at: approvedAt })
+          .eq("id", reqId);
+      } else {
+        let comp = componentsData.find(c => c.mpn.toUpperCase() === req.mpn.toUpperCase());
+        if (comp) {
+          let sourceLoc = (comp.stock_locations || []).find(l => 
+            l.owner_person.toLowerCase() === req.target_owner.toLowerCase() && 
+            l.department.toLowerCase() === req.target_dept.toLowerCase()
+          );
+          if (sourceLoc) {
+            sourceLoc.quantity = Math.max(0, sourceLoc.quantity - req.quantity);
+          }
 
-        if (targetLoc) {
-          targetLoc.quantity += req.quantity;
-        } else {
-          comp.stock_locations.push({
-            id: "s_" + Date.now(),
-            department: req.requester_dept,
-            owner_person: req.requester_name,
-            storage_bin: "Desk Box / Received from " + req.target_owner,
-            quantity: req.quantity
-          });
+          let targetLoc = (comp.stock_locations || []).find(l =>
+            l.owner_person.toLowerCase() === req.requester_name.toLowerCase() &&
+            l.department.toLowerCase() === req.requester_dept.toLowerCase()
+          );
+          if (targetLoc) {
+            targetLoc.quantity += req.quantity;
+          } else {
+            comp.stock_locations.push({
+              id: "s_" + Date.now(),
+              department: req.requester_dept,
+              owner_person: req.requester_name,
+              storage_bin: "Received from " + req.target_owner,
+              quantity: req.quantity
+            });
+          }
         }
+
+        req.status = newStatus;
+        req.approved_at = approvedAt;
+        saveRequestsData();
+        saveLocalData();
       }
 
-      req.status = req.request_type === "LOAN" ? "LOAN_ACTIVE" : "COMPLETED";
-      req.approved_at = new Date().toISOString();
-      saveRequestsData();
-      saveLocalData();
-
       const note = `Approved & Handed over ${req.quantity} pcs of ${req.mpn} from ${req.target_owner} (${req.target_dept}) to ${req.requester_name} (${req.requester_dept})`;
-      logTransaction(req.mpn, req.target_dept, req.target_owner, "REQUEST_APPROVED", -req.quantity, note);
+      await logTransaction(req.mpn, req.target_dept, req.target_owner, "REQUEST_APPROVED", -req.quantity, note);
+
+      if (isConnectedToSupabase) {
+        await loadInventory();
+      } else {
+        renderRequests();
+        renderInventory();
+        renderTransactions();
+      }
 
       showToast(`Approved! ${req.quantity} pcs of ${req.mpn} handed over to ${req.requester_name}. Stock updated!`, "success");
-      renderRequests();
-      renderInventory();
-      renderTransactions();
     }
 
     async function markRequestReturned(reqId) {
       const req = requestsData.find(r => r.id === reqId);
       if (!req) return;
 
-      // Return components from requester back to provider
-      let comp = componentsData.find(c => c.mpn.toUpperCase() === req.mpn.toUpperCase());
-      if (comp) {
-        let requesterLoc = (comp.stock_locations || []).find(l => 
-          l.owner_person.toLowerCase() === req.requester_name.toLowerCase()
-        );
-        if (requesterLoc) {
-          requesterLoc.quantity = Math.max(0, requesterLoc.quantity - req.quantity);
+      const returnedAt = new Date().toISOString();
+
+      if (isConnectedToSupabase) {
+        const { data: comp } = await supabaseClient.from("components").select("*").eq("mpn", req.mpn).maybeSingle();
+        if (comp) {
+          const { data: reqLocs } = await supabaseClient.from("stock_locations")
+            .select("*")
+            .eq("component_id", comp.id)
+            .ilike("owner_person", req.requester_name);
+          if (reqLocs && reqLocs.length > 0) {
+            await supabaseClient.from("stock_locations")
+              .update({ quantity: Math.max(0, reqLocs[0].quantity - req.quantity) })
+              .eq("id", reqLocs[0].id);
+          }
+
+          const { data: provLocs } = await supabaseClient.from("stock_locations")
+            .select("*")
+            .eq("component_id", comp.id)
+            .ilike("owner_person", req.target_owner)
+            .eq("department", req.target_dept);
+          if (provLocs && provLocs.length > 0) {
+            await supabaseClient.from("stock_locations")
+              .update({ quantity: provLocs[0].quantity + req.quantity })
+              .eq("id", provLocs[0].id);
+          } else {
+            await supabaseClient.from("stock_locations").insert({
+              component_id: comp.id,
+              department: req.target_dept,
+              owner_person: req.target_owner,
+              storage_bin: req.storage_bin || "Main Drawer",
+              quantity: req.quantity
+            });
+          }
         }
 
-        let providerLoc = (comp.stock_locations || []).find(l => 
-          l.owner_person.toLowerCase() === req.target_owner.toLowerCase() &&
-          l.department.toLowerCase() === req.target_dept.toLowerCase()
-        );
-        if (providerLoc) {
-          providerLoc.quantity += req.quantity;
-        } else {
-          comp.stock_locations.push({
-            id: "s_" + Date.now(),
-            department: req.target_dept,
-            owner_person: req.target_owner,
-            storage_bin: req.storage_bin || "Main Drawer",
-            quantity: req.quantity
-          });
+        await supabaseClient.from("component_requests")
+          .update({ status: "COMPLETED", returned_at: returnedAt })
+          .eq("id", reqId);
+      } else {
+        let comp = componentsData.find(c => c.mpn.toUpperCase() === req.mpn.toUpperCase());
+        if (comp) {
+          let requesterLoc = (comp.stock_locations || []).find(l => 
+            l.owner_person.toLowerCase() === req.requester_name.toLowerCase()
+          );
+          if (requesterLoc) {
+            requesterLoc.quantity = Math.max(0, requesterLoc.quantity - req.quantity);
+          }
+
+          let providerLoc = (comp.stock_locations || []).find(l => 
+            l.owner_person.toLowerCase() === req.target_owner.toLowerCase() &&
+            l.department.toLowerCase() === req.target_dept.toLowerCase()
+          );
+          if (providerLoc) {
+            providerLoc.quantity += req.quantity;
+          } else {
+            comp.stock_locations.push({
+              id: "s_" + Date.now(),
+              department: req.target_dept,
+              owner_person: req.target_owner,
+              storage_bin: req.storage_bin || "Main Drawer",
+              quantity: req.quantity
+            });
+          }
         }
+
+        req.status = "COMPLETED";
+        req.returned_at = returnedAt;
+        saveRequestsData();
+        saveLocalData();
       }
 
-      req.status = "COMPLETED";
-      req.returned_at = new Date().toISOString();
-      saveRequestsData();
-      saveLocalData();
-
       const note = `Returned ${req.quantity} pcs of ${req.mpn} from ${req.requester_name} back to ${req.target_owner} (${req.target_dept})`;
-      logTransaction(req.mpn, req.target_dept, req.target_owner, "RETURNED", req.quantity, note);
+      await logTransaction(req.mpn, req.target_dept, req.target_owner, "RETURNED", req.quantity, note);
+
+      if (isConnectedToSupabase) {
+        await loadInventory();
+      } else {
+        renderRequests();
+        renderInventory();
+        renderTransactions();
+      }
 
       showToast(`Marked as returned! ${req.quantity} pcs of ${req.mpn} restored to ${req.target_owner}.`, "success");
-      renderRequests();
-      renderInventory();
-      renderTransactions();
     }
 
-    function declineRequest(reqId) {
+    async function declineRequest(reqId) {
       const reason = prompt("Enter a brief reason for declining (e.g. Parts needed for another build):", "Components currently in active testing");
       if (reason === null) return;
 
-      const req = requestsData.find(r => r.id === reqId);
-      if (!req) return;
+      const declinedAt = new Date().toISOString();
 
-      req.status = "DECLINED";
-      req.decline_reason = reason;
-      req.declined_at = new Date().toISOString();
-      saveRequestsData();
+      if (isConnectedToSupabase) {
+        await supabaseClient.from("component_requests")
+          .update({ status: "DECLINED", decline_reason: reason, declined_at: declinedAt })
+          .eq("id", reqId);
+        await loadInventory();
+      } else {
+        const req = requestsData.find(r => r.id === reqId);
+        if (req) {
+          req.status = "DECLINED";
+          req.decline_reason = reason;
+          req.declined_at = declinedAt;
+          saveRequestsData();
+          renderRequests();
+        }
+      }
 
-      showToast(`Request marked as declined.`, "info");
-      renderRequests();
+      showToast("Request marked as declined.", "info");
     }
 
     function setRequestStatusFilter(status) {
@@ -1716,7 +1852,6 @@
       const historyTbody = document.getElementById("requestsHistoryTableBody");
       const memberFilter = document.getElementById("reqMemberFilter")?.value || "ALL";
 
-      // Update counters
       const pendingCount = requestsData.filter(r => r.status === "PENDING").length;
       const loanCount = requestsData.filter(r => r.status === "LOAN_ACTIVE").length;
       const doneCount = requestsData.filter(r => r.status === "COMPLETED" || r.status === "APPROVED").length;
@@ -1727,11 +1862,10 @@
       document.getElementById("countReqDone").textContent = doneCount;
       updatePendingBadge();
 
-      // Active / Pending Queue filter
       const activeList = requestsData.filter(r => {
         const matchesMember = memberFilter === "ALL" || 
-          r.requester_name.toLowerCase() === memberFilter.toLowerCase() ||
-          r.target_owner.toLowerCase() === memberFilter.toLowerCase();
+          (r.requester_name && r.requester_name.toLowerCase() === memberFilter.toLowerCase()) ||
+          (r.target_owner && r.target_owner.toLowerCase() === memberFilter.toLowerCase());
         
         const isQueueItem = r.status === "PENDING" || r.status === "LOAN_ACTIVE";
         const matchesStatus = currentReqFilter === "ALL" || 
@@ -1830,8 +1964,8 @@
       // History Table
       const historyList = requestsData.filter(r => {
         const matchesMember = memberFilter === "ALL" || 
-          r.requester_name.toLowerCase() === memberFilter.toLowerCase() ||
-          r.target_owner.toLowerCase() === memberFilter.toLowerCase();
+          (r.requester_name && r.requester_name.toLowerCase() === memberFilter.toLowerCase()) ||
+          (r.target_owner && r.target_owner.toLowerCase() === memberFilter.toLowerCase());
         return matchesMember;
       });
 
@@ -2784,7 +2918,7 @@
       const summaryNote = `Imported ${parsedBomItems.length} lines (${customBin || parsedBomItems[0]?.project_bin || 'BOM'})`;
       const totalPcs = parsedBomItems.reduce((acc, i) => acc + i.quantity, 0);
 
-      logTransaction(`BOM (${parsedBomItems.length} parts)`, department, owner_person, "BOM_UPLOAD", totalPcs, summaryNote);
+      await logTransaction(`BOM (${parsedBomItems.length} parts)`, department, owner_person, "BOM_UPLOAD", totalPcs, summaryNote);
 
       if (isConnectedToSupabase) {
         await loadInventory();
@@ -2829,7 +2963,7 @@
           component_id: existingComp.id, department, owner_person, storage_bin, quantity
         });
 
-        logTransaction(mpn, department, owner_person, "ADD", quantity, `Added to ${storage_bin} by ${owner_person}`);
+        await logTransaction(mpn, department, owner_person, "ADD", quantity, `Added to ${storage_bin} by ${owner_person}`);
         await loadInventory();
       } else {
         let comp = componentsData.find(c => c.mpn === mpn);
@@ -2839,7 +2973,7 @@
         }
         comp.stock_locations.push({ id: "s_" + Date.now(), department, owner_person, storage_bin, quantity });
 
-        logTransaction(mpn, department, owner_person, "ADD", quantity, `Added to ${storage_bin}`);
+        await logTransaction(mpn, department, owner_person, "ADD", quantity, `Added to ${storage_bin}`);
         saveLocalData();
         updateMemberDropdowns();
         renderInventory();
@@ -2881,7 +3015,7 @@
         const newQty = Math.max(0, loc.quantity - qtyToTake);
         await supabaseClient.from("stock_locations").update({ quantity: newQty }).eq("id", stockId);
         
-        logTransaction(mpn, borrowerDept, engineer, "TAKE", -qtyToTake, `${note} (Borrowed from ${loc.department} - ${loc.owner_person})`);
+        await logTransaction(mpn, borrowerDept, engineer, "TAKE", -qtyToTake, `${note} (Borrowed from ${loc.department} - ${loc.owner_person})`);
         await loadInventory();
       } else {
         componentsData.forEach(c => {
@@ -2937,7 +3071,7 @@
             quantity: qty
           });
 
-          logTransaction(mpn, toDept, toOwner, "TRANSFER", qty, `Transferred from ${sourceLoc.department} (${sourceLoc.owner_person}) to ${toDept} (${toOwner}) — ${note}`);
+          await logTransaction(mpn, toDept, toOwner, "TRANSFER", qty, `Transferred from ${sourceLoc.department} (${sourceLoc.owner_person}) to ${toDept} (${toOwner}) — ${note}`);
           await loadInventory();
         }
       } else {
@@ -2970,7 +3104,7 @@
             });
           }
 
-          logTransaction(mpn, toDept, toOwner, "TRANSFER", qty, `Transferred from ${sourceLoc.department} (${sourceLoc.owner_person}) to ${toDept} (${toOwner}) — ${note}`);
+          await logTransaction(mpn, toDept, toOwner, "TRANSFER", qty, `Transferred from ${sourceLoc.department} (${sourceLoc.owner_person}) to ${toDept} (${toOwner}) — ${note}`);
           saveLocalData();
           updateMemberDropdowns();
           renderInventory();
